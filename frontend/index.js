@@ -1845,6 +1845,7 @@ function initReviewSubmission() {
       }
 
       let targetNodeId = null;
+      let newNodesList = [];
 
       // 1. Resolve Target Node ID
       if (!isNewMode) {
@@ -1873,66 +1874,25 @@ function initReviewSubmission() {
         // Generate taxonomy nodes recursively
         const pathSegments = newPath.split('/').map(s => s.trim()).filter(Boolean);
         let currentParent = parentId;
-        const newNodesList = [];
 
         pathSegments.forEach((segment, idx) => {
           const slug = segment.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 50);
-          
-          // Check if path already exists (exact slug, synonym alias, or fuzzy spelling match)
-          let existing = db.nodes.find(n => {
-            if (n.parent_id !== currentParent) return false;
-            // 1. Exact slug match
-            if (n.slug === slug) return true;
-            // 2. Exact name match (case-insensitive)
-            if (n.name.toLowerCase() === segment.toLowerCase()) return true;
-            // 3. Synonym / Alias match
-            if (n.aliases && Array.isArray(n.aliases)) {
-              const lowerAliases = n.aliases.map(a => a.toLowerCase().trim());
-              if (lowerAliases.includes(segment.toLowerCase()) || lowerAliases.includes(slug)) return true;
-            }
-            // 4. Fuzzy Levenshtein match for sibling categories/merchants (distance <= 1 for spelling errors)
-            if (getEditDistance(n.slug, slug) <= 1) {
-              console.log(`Fuzzy matched "${segment}" to existing node "${n.name}"`);
-              return true;
-            }
-            return false;
-          });
-          
-          if (existing) {
-            currentParent = existing.id;
-          } else {
-            // Create new node
-            const newId = Math.floor(Math.random() * 100000000) + 1000000;
-            const parentNode = db.nodes.find(n => n.id === currentParent);
-            const parentPath = parentNode ? parentNode.path : '';
-            const nodePath = parentPath ? `${parentPath}.${newId}` : `${newId}`;
+          const isLeaf = idx === pathSegments.length - 1;
 
-            const isLeaf = idx === pathSegments.length - 1;
+          const newNodePayload = {
+            name: segment,
+            slug: slug,
+            node_type: isLeaf ? leafNodeType : 'category',
+            aliases: isLeaf ? aliasesList : []
+          };
 
-            const newNode = {
-              id: newId,
-              parent_id: currentParent,
-              name: segment,
-              slug: slug,
-              node_type: isLeaf ? leafNodeType : 'category',
-              path: nodePath,
-              aliases: isLeaf ? aliasesList : []
-            };
-
-            // If leaf, add verified address
-            if (isLeaf) {
-              if (address) newNode.address = address;
-              if (coords) newNode.coordinates = coords;
-            }
-
-            db.nodes.push(newNode);
-            newNodesList.push(newNode);
-            currentParent = newId;
+          if (isLeaf) {
+            if (address) newNodePayload.address = address;
+            if (coords) newNodePayload.coordinates = coords;
           }
-        });
 
-        targetNodeId = currentParent;
-      }
+          newNodesList.push(newNodePayload);
+        });
 
       // 2. Perform PoE Logs simulation terminal
       poeLogs.innerHTML = '';
@@ -1996,7 +1956,8 @@ function initReviewSubmission() {
         
         const newReview = {
           id: newReviewId,
-          node_id: targetNodeId,
+          // targetNodeId is calculated on the server if newNodesList is present
+          node_id: isNewMode ? null : targetNodeId,
           author_id: currentUser.id,
           raw_content: content,
           is_verified_experience: isVerified,
@@ -2040,6 +2001,7 @@ function initReviewSubmission() {
             authKey: sessionStorage.getItem('current_user_key'),
             review: newReview,
             newNodes: newNodesList,
+            parentNodeId: isNewMode ? parentIdSelect.value : null,
             tags: tagsList
           })
         }).then(res => {
@@ -2234,6 +2196,7 @@ window.mergeNodeInDirectory = async function(nodeId) {
     localStorage.removeItem('review_network_db');
     loadDb();
     await syncLiveReviews();
+    await syncLiveProfiles();
     
     // Reset path back to root since structure changed
     currentDirectoryPath = [];

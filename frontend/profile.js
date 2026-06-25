@@ -443,34 +443,8 @@ function getDbProfilesSnapshot() {
 }
 
 async function syncSnapshotChanges(snapshot) {
-  const updates = [];
-  db.profiles.forEach(p => {
-    // Exclude root moderator from updates since it is read-only on the edge
-    if (p.id === '00000000-0000-0000-0000-000000000001') return;
-
-    const snap = snapshot.find(s => s.id === p.id);
-    if (!snap || 
-        snap.is_active !== p.is_active || 
-        snap.reputation_score !== p.reputation_score || 
-        snap.invited_by !== p.invited_by ||
-        snap.role !== p.role ||
-        snap.released_by !== p.released_by ||
-        snap.originally_invited_by !== p.originally_invited_by) {
-      
-      const updatePayload = { id: p.id };
-      if (!snap || snap.is_active !== p.is_active) updatePayload.is_active = p.is_active;
-      if (!snap || snap.reputation_score !== p.reputation_score) updatePayload.reputation_score = p.reputation_score;
-      if (!snap || snap.invited_by !== p.invited_by) updatePayload.invited_by = p.invited_by;
-      if (!snap || snap.role !== p.role) updatePayload.role = p.role;
-      if (!snap || snap.released_by !== p.released_by) updatePayload.released_by = p.released_by;
-      if (!snap || snap.originally_invited_by !== p.originally_invited_by) updatePayload.originally_invited_by = p.originally_invited_by;
-
-      updates.push(updatePayload);
-    }
-  });
-  if (updates.length > 0) {
-    await updateProfilesOnEdge(updates);
-  }
+  // DEPRECATED: The frontend is now a dumb terminal. 
+  // It no longer pushes locally mutated state back to the edge.
 }
 
 
@@ -562,51 +536,8 @@ function getLineageAlpha() {
 }
 
 function computeReputationDecay() {
-  const lineageAlpha = getLineageAlpha();
-
-  db.profiles.forEach(p => {
-    if (p.is_active) {
-      p.reputation_score = p.base_reputation;
-    } else {
-      p.reputation_score = 0.0000;
-    }
-  });
-
-  let changed = true;
-  let iterations = 0;
-  while (changed && iterations < 10) {
-    changed = false;
-    iterations++;
-
-    for (let p of db.profiles) {
-      if (!p.is_active || p.reputation_score === 0) continue;
-
-      let children = db.profiles.filter(c => c.invited_by === p.id);
-      if (children.length === 0) continue;
-
-      let product = 1.0;
-      for (let child of children) {
-        let childReviews = db.reviews.filter(r => r.author_id === child.id);
-        if (childReviews.length === 0) continue;
-
-        let totalTheta = 0;
-        childReviews.forEach(r => {
-          let { theta } = calculateConsensusTheta(r.id);
-          totalTheta += theta;
-        });
-        let childAvgTheta = totalTheta / childReviews.length;
-
-        let term = 1.0 - (lineageAlpha * (1.0 - childAvgTheta));
-        product *= Math.max(0, Math.min(1, term));
-      }
-
-      let newRep = parseFloat((p.base_reputation * product).toFixed(4));
-      if (Math.abs(p.reputation_score - newRep) > 0.0001) {
-        p.reputation_score = newRep;
-        changed = true;
-      }
-    }
-  }
+  // DEPRECATED: Reputation decay is now handled by a Postgres CRON job on the server.
+  // The frontend acts as a dumb terminal and will simply fetch the latest state.
 }
 
 // Helper to construct breadcrumb node path (e.g. Earth / United States / Texas / Austin)

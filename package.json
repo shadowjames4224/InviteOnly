@@ -23,5 +23,8 @@
     "supabase"
   ],
   "author": "Antigravity Dev Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.22.0"
+  }
 }
