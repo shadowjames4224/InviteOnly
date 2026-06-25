@@ -518,7 +518,7 @@ function syncCurrentUser() {
 
               changeNameInput.value = '';
 
-              alert(`✓ Username updated successfully!\n\nYour new Access Key is: ${newKey}\n\nPlease copy and save this key to log in next time.`);
+              prompt(`✓ Username updated successfully!\n\nPlease copy and save this key to log in next time.\n\nYour new Access Key is:`, newKey);
               location.reload();
             } catch (err) {
               console.error(err);
@@ -1900,7 +1900,7 @@ function initReviewSubmission() {
             currentParent = existing.id;
           } else {
             // Create new node
-            const newId = db.nodes.reduce((max, n) => n.id > max ? n.id : max, 0) + 1;
+            const newId = Math.floor(Math.random() * 100000000) + 1000000;
             const parentNode = db.nodes.find(n => n.id === currentParent);
             const parentPath = parentNode ? parentNode.path : '';
             const nodePath = parentPath ? `${parentPath}.${newId}` : `${newId}`;
@@ -2013,7 +2013,7 @@ function initReviewSubmission() {
             let tag = db.tags.find(t => t.name === tagStr);
             let tagId;
             if (!tag) {
-              tagId = db.tags.reduce((max, t) => t.id > max ? t.id : max, 0) + 1;
+              tagId = Math.floor(Math.random() * 100000000) + 1000000;
               db.tags.push({ id: tagId, name: tagStr });
             } else {
               tagId = tag.id;
