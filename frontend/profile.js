@@ -259,6 +259,18 @@ async function syncLiveProfiles() {
         
         saveDbState();
         if (currentUser) {
+          // Re-evaluate admin privileges based on synced roles
+          const isModerator = currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator';
+          const adminPanel = document.getElementById('admin-management-panel');
+          if (adminPanel) {
+            if (isModerator && adminPanel.classList.contains('hidden')) {
+              adminPanel.classList.remove('hidden');
+              initAdminPanel();
+            } else if (!isModerator) {
+              adminPanel.classList.add('hidden');
+            }
+          }
+
           renderAdminInviteGraph();
           populateAdminManageUserDropdown();
           populateAdminInviterDropdown();
