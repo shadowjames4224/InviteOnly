@@ -16,8 +16,8 @@ function getSeedData() {
       { id: 3, parent_id: 2, name: 'Texas', slug: 'texas', node_type: 'state', path: '1.2.3' },
       { id: 4, parent_id: 3, name: 'Austin', slug: 'austin', node_type: 'city', path: '1.2.3.4' },
       { id: 5, parent_id: 4, name: 'Coffee Shops', slug: 'coffee_shops', node_type: 'category', path: '1.2.3.4.5' },
-      { id: 6, parent_id: 5, name: 'Epoch Coffee', slug: 'epoch_coffee', node_type: 'merchant', path: '1.2.3.4.5.6' },
-      { id: 7, parent_id: 5, name: 'Radio Coffee & Beer', slug: 'radio_coffee_beer', node_type: 'merchant', path: '1.2.3.4.5.7' },
+      { id: 6, parent_id: 5, name: 'Classic Coffee', slug: 'classic_coffee', node_type: 'merchant', path: '1.2.3.4.5.6' },
+      { id: 7, parent_id: 5, name: 'Downtown Cafe', slug: 'downtown_cafe', node_type: 'merchant', path: '1.2.3.4.5.7' },
       { id: 8, parent_id: 6, name: 'Cold Brew Coffee', slug: 'cold_brew_coffee', node_type: 'item', path: '1.2.3.4.5.6.8' }
     ],
     invite_tokens: [],

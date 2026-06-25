@@ -19,8 +19,8 @@ function getSeedData() {
       { id: 3, parent_id: 2, name: 'Texas', slug: 'texas', node_type: 'state', path: '1.2.3' },
       { id: 4, parent_id: 3, name: 'Austin', slug: 'austin', node_type: 'city', path: '1.2.3.4' },
       { id: 5, parent_id: 4, name: 'Coffee Shops', slug: 'coffee_shops', node_type: 'category', path: '1.2.3.4.5' },
-      { id: 6, parent_id: 5, name: 'Epoch Coffee', slug: 'epoch_coffee', node_type: 'merchant', path: '1.2.3.4.5.6', address: "221 North Loop Blvd, Austin, TX", coordinates: "30.3184° N, 97.7245° W" },
-      { id: 7, parent_id: 5, name: 'Radio Coffee & Beer', slug: 'radio_coffee_beer', node_type: 'merchant', path: '1.2.3.4.5.7', address: "3504 Menchaca Rd, Austin, TX", coordinates: "30.2335° N, 97.7858° W" },
+      { id: 6, parent_id: 5, name: 'Classic Coffee', slug: 'classic_coffee', node_type: 'merchant', path: '1.2.3.4.5.6', address: "221 North Loop Blvd, Austin, TX", coordinates: "30.3184° N, 97.7245° W" },
+      { id: 7, parent_id: 5, name: 'Downtown Cafe', slug: 'downtown_cafe', node_type: 'merchant', path: '1.2.3.4.5.7', address: "3504 Menchaca Rd, Austin, TX", coordinates: "30.2335° N, 97.7858° W" },
       { id: 8, parent_id: 6, name: 'Cold Brew Coffee', slug: 'cold_brew_coffee', node_type: 'item', path: '1.2.3.4.5.6.8' }
     ],
     global_entities: [
@@ -29,7 +29,7 @@ function getSeedData() {
       { id: 'ge_fishing_pool', name: 'Silver Creek Fishing Pool', category: 'Outdoor Recreation' }
     ],
     execution_instances: [
-      { id: 'ei_macchiato_402', global_entity_id: 'ge_macchiato', current_archetype_id: 'arch_iced_macchiato', location_name: 'Epoch Coffee - Franchise #402', address: '221 North Loop Blvd, Austin, TX', coordinates: '30.3184, -97.7245', gps_dop: 1.0 },
+      { id: 'ei_macchiato_402', global_entity_id: 'ge_macchiato', current_archetype_id: 'arch_iced_macchiato', location_name: 'Classic Coffee - Franchise #402', address: '221 North Loop Blvd, Austin, TX', coordinates: '30.3184, -97.7245', gps_dop: 1.0 },
       { id: 'ei_gpu_fab12', global_entity_id: 'ge_gpu_x', current_archetype_id: 'arch_gpu_7nm', location_name: 'Foundry Fab #12', address: 'Phoenix, AZ', coordinates: '33.4484, -112.0740', gps_dop: 1.0 },
       { id: 'ei_silver_creek', global_entity_id: 'ge_fishing_pool', current_archetype_id: 'arch_stream_winter', location_name: 'Picabo Stream Pool', address: 'Picabo, ID', coordinates: '43.3275, -114.1685', gps_dop: 1.0 }
     ],

@@ -59,7 +59,7 @@
     <div class="explorer-filters-card">
       <div class="search-box-row">
         <span class="search-icon">🔍</span>
-        <input type="text" id="explorer-search-input" placeholder="Search by merchant, category, or review content (e.g. 'Epoch', 'parking', 'microchips')...">
+        <input type="text" id="explorer-search-input" placeholder="Search by merchant, category, or review content (e.g. 'Classic', 'parking', 'microchips')...">
       </div>
       <div class="filter-controls-row">
         <div class="poe-filter-checkbox">
@@ -179,27 +179,7 @@
     </div>
 
     <div class="nodes-grid">
-      <div class="node-card">
-        <span class="node-icon-bg">🏪</span>
-        <h3>Epoch Coffee</h3>
-        <p class="node-path">earth / us / texas / austin / coffee_shops / epoch_coffee</p>
-        <div class="node-stats">
-          <span>👍 2 Vouches</span>
-          <span class="verified-indicator">✓ PoE Verified</span>
-        </div>
-
-      </div>
-
-      <div class="node-card">
-        <span class="node-icon-bg">🏪</span>
-        <h3>Radio Coffee & Beer</h3>
-        <p class="node-path">earth / us / texas / austin / coffee_shops / radio_coffee_beer</p>
-        <div class="node-stats">
-          <span>👍 0 Vouches</span>
-          <span>Pending verification</span>
-        </div>
-
-      </div>
+      <!-- Dynamically populated from active database merchants -->
     </div>
   </section>
 
@@ -267,8 +247,8 @@
           { id: 3, parent_id: 2, name: 'Texas', slug: 'texas', node_type: 'state', path: '1.2.3' },
           { id: 4, parent_id: 3, name: 'Austin', slug: 'austin', node_type: 'city', path: '1.2.3.4' },
           { id: 5, parent_id: 4, name: 'Coffee Shops', slug: 'coffee_shops', node_type: 'category', path: '1.2.3.4.5' },
-          { id: 6, parent_id: 5, name: 'Epoch Coffee', slug: 'epoch_coffee', node_type: 'merchant', path: '1.2.3.4.5.6' },
-          { id: 7, parent_id: 5, name: 'Radio Coffee & Beer', slug: 'radio_coffee_beer', node_type: 'merchant', path: '1.2.3.4.5.7' },
+          { id: 6, parent_id: 5, name: 'Classic Coffee', slug: 'classic_coffee', node_type: 'merchant', path: '1.2.3.4.5.6' },
+          { id: 7, parent_id: 5, name: 'Downtown Cafe', slug: 'downtown_cafe', node_type: 'merchant', path: '1.2.3.4.5.7' },
           { id: 8, parent_id: 6, name: 'Cold Brew Coffee', slug: 'cold_brew_coffee', node_type: 'item', path: '1.2.3.4.5.6.8' },
           
           { id: 9, parent_id: 2, name: 'California', slug: 'california', node_type: 'state', path: '1.2.9' },
@@ -636,7 +616,7 @@
       });
 
       if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="details-placeholder" style="line-height:80px; text-align:center;">No reviews match the current query. Try searching for "Epoch", "parking", or specific hardware/location coordinates.</div>';
+        resultsContainer.innerHTML = '<div class="details-placeholder" style="line-height:80px; text-align:center;">No reviews match the current query. Try searching for "Classic", "parking", or specific hardware/location coordinates.</div>';
         return;
       }
 
@@ -956,10 +936,66 @@
     document.getElementById('select-explorer-consensus')?.addEventListener('change', renderExplorerFeed);
 
     // Sync storage updates
+    // Render featured nodes dynamically from the active list of merchants
+    function renderFeaturedNodes() {
+      const section = document.querySelector('.featured-nodes-section');
+      const container = document.querySelector('.nodes-grid');
+      if (!container || !section) return;
+      container.innerHTML = '';
+
+      // Find all nodes of type 'merchant' that have at least one review
+      const merchants = db.nodes.filter(n => {
+        if (n.node_type !== 'merchant') return false;
+        return db.reviews.some(r => r.node_id === n.id);
+      });
+
+      if (merchants.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+
+      section.classList.remove('hidden');
+
+      merchants.forEach(m => {
+        // Count how many reviews exist for this merchant
+        const reviews = db.reviews.filter(r => r.node_id === m.id);
+        
+        // Check if any of these reviews are PoE verified
+        const hasPoe = reviews.some(r => r.is_verified_experience);
+
+        const reviewCount = reviews.length;
+        const statusText = hasPoe ? '✓ PoE Verified' : 'Pending verification';
+        const statusClass = hasPoe ? 'verified-indicator' : '';
+
+        // Node path string (slashes format)
+        let pathParts = [];
+        let curr = m;
+        while (curr) {
+          pathParts.unshift(curr.slug);
+          curr = db.nodes.find(n => n.id === curr.parent_id);
+        }
+        const pathStr = pathParts.join(' / ');
+
+        const card = document.createElement('div');
+        card.className = 'node-card';
+        card.innerHTML = `
+          <span class="node-icon-bg">🏪</span>
+          <h3>${m.name}</h3>
+          <p class="node-path">${pathStr}</p>
+          <div class="node-stats">
+            <span>👍 ${reviewCount} Reviews</span>
+            <span class="${statusClass}">${statusText}</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
     window.addEventListener('storage', (e) => {
       if (e.key === 'review_network_db') {
         loadDb();
         renderExplorerFeed();
+        renderFeaturedNodes();
       }
     });
 
@@ -973,6 +1009,7 @@
 
     // Initial render
     renderExplorerFeed();
+    renderFeaturedNodes();
   </script>
   <script src="assistant.js"></script>
 </body>
