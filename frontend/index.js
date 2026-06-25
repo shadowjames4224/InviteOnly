@@ -1893,6 +1893,7 @@ function initReviewSubmission() {
 
           newNodesList.push(newNodePayload);
         });
+      }
 
       // 2. Perform PoE Logs simulation terminal
       poeLogs.innerHTML = '';
