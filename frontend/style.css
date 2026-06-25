@@ -464,6 +464,7 @@ header {
   justify-content: center;
   gap: 0.4rem;
   transition: all var(--transition-fast);
+  will-change: transform;
 }
 
 .btn:active {
@@ -702,6 +703,7 @@ header {
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
 .review-card:hover {
@@ -1291,7 +1293,7 @@ footer {
 
 .pin-icon {
   font-size: 1.2rem;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
 }
 
 .pin-pulse {
@@ -2770,7 +2772,7 @@ footer {
 .sidebar-brand .logo-icon {
   font-size: 1.25rem;
   color: var(--color-primary);
-  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
 .sidebar-nav {
@@ -2813,7 +2815,7 @@ footer {
   text-align: left;
   width: 100%;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   box-sizing: border-box;
 }
 
