@@ -16,31 +16,53 @@
   <div class="app-layout">
     <!-- Left Fixed Vertical Sidebar -->
     <aside class="app-sidebar">
-      <div class="sidebar-brand">
+      <div class="sidebar-brand" onclick="location.href='home.html'" style="cursor: pointer;">
         <span class="logo-icon">✦</span>
-        <h2>InviteOnly <span class="logo-sub">Network</span></h2>
+        <h2>IOR</h2>
       </div>
       
       <!-- Navigation Tabs -->
       <nav class="sidebar-nav">
-        <a href="index.html?tab=feed-view" class="nav-link-btn">
-          <span class="btn-icon">🌐</span> Forum Feed
-        </a>
-        <a href="index.html?tab=browse-view" class="nav-link-btn">
-          <span class="btn-icon">📁</span> Browse Directory
-        </a>
-        <a href="index.html?tab=submit-view" class="nav-link-btn">
-          <span class="btn-icon">📝</span> Post Review
-        </a>
-        <a href="index.html?tab=settings-view" class="nav-link-btn">
-          <span class="btn-icon">⚙️</span> Settings
-        </a>
-        <a href="profile.html" class="nav-link-btn active">
-          <span class="btn-icon">👤</span> My Profile
-        </a>
-        <a href="home.html" class="nav-link-btn">
-          <span class="btn-icon">🏠</span> Landing Page
-        </a>
+        <!-- Group 1: Feed & Explore -->
+        <div class="nav-group">
+          <div class="nav-group-title">Explore</div>
+          <a href="index.html?tab=feed-view" class="nav-link-btn">
+            <span class="btn-icon">🏠</span> Home
+          </a>
+          <a href="index.html?tab=browse-view" class="nav-link-btn">
+            <span class="btn-icon">📁</span> Directory
+          </a>
+        </div>
+
+        <!-- Group 2: Social -->
+        <div class="nav-group">
+          <div class="nav-group-title">Community</div>
+          <a href="index.html?tab=following-view" class="nav-link-btn">
+            <span class="btn-icon">👥</span> Following Feed
+          </a>
+          <a href="index.html?tab=users-view" class="nav-link-btn">
+            <span class="btn-icon">🔍</span> Search Users
+          </a>
+        </div>
+
+        <!-- Group 3: Publish -->
+        <div class="nav-group">
+          <div class="nav-group-title">Write</div>
+          <a href="index.html?tab=submit-view" class="nav-link-btn">
+            <span class="btn-icon">📝</span> Post Review
+          </a>
+        </div>
+
+        <!-- Group 4: Account -->
+        <div class="nav-group">
+          <div class="nav-group-title">Account</div>
+          <a href="profile.html" class="nav-link-btn active">
+            <span class="btn-icon">👤</span> My Profile
+          </a>
+          <a href="index.html?tab=settings-view" class="nav-link-btn">
+            <span class="btn-icon">⚙️</span> Settings
+          </a>
+        </div>
       </nav>
 
       <!-- User status shortcut anchored at bottom -->
