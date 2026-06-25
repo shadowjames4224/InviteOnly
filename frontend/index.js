@@ -1224,11 +1224,13 @@ window.castFeedVote = function(reviewId, type) {
   // Re-run reputation contagion calculations
   runLineageReputationDecay();
 
-  // Sync UI
-  renderFeedReviews();
-  
-  // Also sync details panel in browse view if it is showing
-  renderDirectoryExplorer();
+  // Sync UI — update whichever tab is currently visible
+  const activeTab = document.querySelector('.nav-tab-btn.active')?.getAttribute('data-tab');
+  if (activeTab === 'feed-view') renderFeedReviews();
+  else if (activeTab === 'following-view') renderFollowingFeed();
+  else if (activeTab === 'browse-view') renderDirectoryExplorer();
+  else if (activeTab === 'users-view' && selectedUserId) renderSelectedUserDetails(selectedUserId);
+  else renderFeedReviews(); // fallback
 
   // Sync vouch to database in background
   fetch('https://api.inviteonlyreviews.com/api/vouch', {
@@ -1242,8 +1244,6 @@ window.castFeedVote = function(reviewId, type) {
       type: type,
       allocatedWeight: allocatedWeight
     })
-  }).then(() => {
-    syncLiveReviews();
   }).catch(err => {
     console.error("Failed to sync vouch:", err);
   });

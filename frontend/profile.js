@@ -905,6 +905,165 @@ function populateParentNodeDropdown() {
   selectParent.dispatchEvent(new Event('change'));
 }
 
+// ----------------------------------------------------
+// Governance Voting Helpers (mirrored from index.js)
+// ----------------------------------------------------
+
+// Verify if two users share an invite lineage (discount weight by 50%)
+function checkLineageCollusion(authorId, voterId) {
+  if (authorId === voterId) return false;
+
+  // Recursively trace parent nodes up to 5 generations
+  const checkParent = (id, target, depth) => {
+    if (depth > 5 || !id) return false;
+    const profile = db.profiles.find(p => p.id === id);
+    if (profile) {
+      if (profile.id === target) return true;
+      return checkParent(profile.invited_by, target, depth + 1);
+    }
+    return false;
+  };
+
+  return checkParent(authorId, voterId, 1) || checkParent(voterId, authorId, 1);
+}
+
+// Recalculate consensus for a single review (used by reputation decay)
+function calculateReviewConsensus(reviewId) {
+  const review = db.reviews.find(r => r.id === reviewId);
+  if (!review) return { theta: 1.0, total: 0, vouches: 0, disputes: 0 };
+
+  const votes = db.vouches_disputes.filter(v => v.review_id === reviewId);
+
+  let vouches = 0;
+  let disputes = 0;
+
+  votes.forEach(vote => {
+    const voter = db.profiles.find(p => p.id === vote.user_id);
+    if (!voter || !voter.is_active) return;
+
+    let weight = parseFloat(voter.reputation_score);
+
+    if (checkLineageCollusion(review.author_id, vote.user_id)) {
+      weight *= 0.5;
+    }
+
+    if (vote.type === 'vouch') {
+      vouches += weight;
+    } else {
+      disputes += weight;
+    }
+  });
+
+  const total = vouches + disputes;
+  const theta = total > 0 ? vouches / total : 1.0;
+  return { theta, total, vouches, disputes };
+}
+
+// Recompute lineage-contagion reputation decay for all profiles
+function runLineageReputationDecay() {
+  loadDbState();
+
+  // Reset all profile reputations to base scores first
+  db.profiles.forEach(p => {
+    if (p.is_active) {
+      p.reputation_score = p.base_reputation;
+    }
+  });
+
+  const penaltyAlpha = getLineageAlpha();
+
+  db.profiles.forEach(targetProfile => {
+    if (!targetProfile.is_active) return;
+
+    let totalDiscount = 0.0;
+
+    const findDeconstructionWeight = (inviterId, generation) => {
+      const invitees = db.profiles.filter(p => p.invited_by === inviterId);
+      invitees.forEach(invitee => {
+        const inviteeReviews = db.reviews.filter(r => r.author_id === invitee.id);
+        inviteeReviews.forEach(r => {
+          const consensus = calculateReviewConsensus(r.id);
+          if (consensus.theta < 0.40) {
+            const decay = (1.0 - consensus.theta) / (generation * penaltyAlpha);
+            totalDiscount += decay;
+          }
+        });
+        findDeconstructionWeight(invitee.id, generation + 1);
+      });
+    };
+
+    findDeconstructionWeight(targetProfile.id, 1);
+
+    targetProfile.reputation_score = Math.max(0.0000, targetProfile.base_reputation - totalDiscount);
+  });
+
+  saveDbState();
+}
+
+// Global vote function exposed on the window so review card onclick attributes work
+window.castFeedVote = function(reviewId, type) {
+  loadDbState();
+  if (!currentUser) {
+    alert("Authentication Required: You must enter your Access Key to cast vouches or disputes.");
+    return;
+  }
+
+  let existingIndex = db.vouches_disputes.findIndex(v => v.review_id === reviewId && v.user_id === currentUser.id);
+  const review = db.reviews.find(r => r.id === reviewId);
+  if (!review) return;
+
+  // Verify social proximity discount (50% weight penalty for direct lineage)
+  let allocatedWeight = parseFloat(currentUser.reputation_score);
+  const isLineageCollusion = checkLineageCollusion(review.author_id, currentUser.id);
+  if (isLineageCollusion) {
+    allocatedWeight = allocatedWeight * 0.5000;
+  }
+
+  if (existingIndex > -1) {
+    const existing = db.vouches_disputes[existingIndex];
+    if (existing.type === type) {
+      // Toggle off
+      db.vouches_disputes.splice(existingIndex, 1);
+    } else {
+      // Switch type
+      existing.type = type;
+      existing.allocated_weight = allocatedWeight;
+    }
+  } else {
+    // New vote
+    db.vouches_disputes.push({
+      review_id: reviewId,
+      user_id: currentUser.id,
+      type: type,
+      allocated_weight: allocatedWeight
+    });
+  }
+
+  saveDbState();
+
+  // Re-run reputation contagion calculations
+  runLineageReputationDecay();
+
+  // Optimistically update the profile feed immediately
+  renderMyReviewsFeed();
+
+  // Sync vouch to database in background (fire-and-forget, no re-fetch)
+  fetch('https://api.inviteonlyreviews.com/api/vouch', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      authKey: sessionStorage.getItem('current_user_key'),
+      reviewId: reviewId,
+      type: type,
+      allocatedWeight: allocatedWeight
+    })
+  }).catch(err => {
+    console.error("Failed to sync vouch:", err);
+  });
+};
+
 function renderMyReviewsFeed() {
   const feed = document.getElementById('profile-reviews-feed');
   feed.innerHTML = '';
