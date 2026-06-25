@@ -1558,7 +1558,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
         }
       } else {
         // Create new node
-        const nextId = db.nodes.reduce((max, n) => n.id > max ? n.id : max, 0) + 1;
+        const nextId = Math.floor(Math.random() * 100000000) + 1000000;
         const parentNode = db.nodes.find(n => n.id === currentParentId);
         const parentPath = parentNode ? parentNode.path : '';
         const newPath = parentPath ? `${parentPath}.${nextId}` : `${nextId}`;
@@ -1677,7 +1677,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
         let tag = db.tags.find(t => t.name === tagStr);
         let tagId;
         if (!tag) {
-          tagId = db.tags.reduce((max, t) => t.id > max ? t.id : max, 0) + 1;
+          tagId = Math.floor(Math.random() * 100000000) + 1000000;
           db.tags.push({ id: tagId, name: tagStr });
         } else {
           tagId = tag.id;
