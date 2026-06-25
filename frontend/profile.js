@@ -158,6 +158,8 @@ async function syncLiveReviews() {
               });
             }
           });
+          const liveTagIds = result.tags.map(t => t.id);
+          db.tags = db.tags.filter(t => liveTagIds.includes(t.id));
         }
 
         // Merge review_tags
@@ -190,6 +192,8 @@ async function syncLiveReviews() {
               });
             }
           });
+          const liveNodeIds = result.nodes.map(n => n.id);
+          db.nodes = db.nodes.filter(n => liveNodeIds.includes(n.id));
         }
 
         // Merge vouches_disputes
@@ -227,6 +231,7 @@ async function syncLiveProfiles() {
           if (localP) {
             localP.username = liveP.username;
             localP.reputation_score = parseFloat(liveP.reputation_score);
+            localP.base_reputation = parseFloat(liveP.reputation_score);
             localP.invited_by = liveP.invited_by;
             localP.is_active = liveP.is_active;
             localP.released_by = liveP.released_by;
@@ -245,6 +250,11 @@ async function syncLiveProfiles() {
             });
           }
         });
+        
+        // Prune deleted profiles from local storage to keep client in sync
+        const liveProfileIds = result.profiles.map(p => p.id);
+        db.profiles = db.profiles.filter(p => liveProfileIds.includes(p.id));
+        
         saveDbState();
         if (currentUser) {
           renderAdminInviteGraph();
@@ -340,6 +350,9 @@ function getDbProfilesSnapshot() {
 async function syncSnapshotChanges(snapshot) {
   const updates = [];
   db.profiles.forEach(p => {
+    // Exclude root moderator from updates since it is read-only on the edge
+    if (p.id === '00000000-0000-0000-0000-000000000001') return;
+
     const snap = snapshot.find(s => s.id === p.id);
     if (!snap || snap.is_active !== p.is_active || snap.reputation_score !== p.reputation_score || snap.invited_by !== p.invited_by) {
       updates.push({
@@ -2270,15 +2283,15 @@ window.selectAdminProfile = function(profileId) {
   const shouldDisable = isRootUser || disableModActions;
   
   const btnRevoke = document.getElementById('btn-admin-revoke-user');
-  if (btnRevoke) btnRevoke.disabled = shouldDisable;
+  if (btnRevoke) btnRevoke.disabled = false;
   
   const btnDelete = document.getElementById('btn-admin-delete-user');
-  if (btnDelete) btnDelete.disabled = shouldDisable;
+  if (btnDelete) btnDelete.disabled = false;
   
-  if (btnToggleStatus) btnToggleStatus.disabled = shouldDisable;
+  if (btnToggleStatus) btnToggleStatus.disabled = false;
   
   const btnUpdateRep = document.getElementById('btn-admin-update-rep');
-  if (btnUpdateRep) btnUpdateRep.disabled = shouldDisable;
+  if (btnUpdateRep) btnUpdateRep.disabled = false;
 
   // Render selected user's reviews in details panel
   const userReviewsContainer = document.getElementById('admin-user-reviews-container');
