@@ -1747,7 +1747,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
             log("Edge-Worker: Target location lacks valid coordinates. Proximity check FAILED.", "danger");
           }
         } else {
-          log("Edge-Worker: No EXIF GPS tags found in uploaded images. Proximity check FAILED.", "danger");
+          log("Edge-Worker: Proximity check FAILED. No GPS data found. Ensure you are uploading an original, unedited photo directly from your phone's camera gallery. Downloaded, screenshotted, or web-saved images (like WebP/PNG) have their location data automatically removed.", "danger");
         }
       } catch (err) {
         log(`Edge-Worker: EXIF parsing error: ${err.message}`, "danger");
@@ -3415,9 +3415,29 @@ if (gpsCheckbox && ocrCheckbox && mediaGroup) {
   const updatePoeMediaVisibility = () => {
     if (gpsCheckbox.checked || ocrCheckbox.checked) {
       mediaGroup.classList.remove('hidden');
+      if (gpsCheckbox.checked) {
+        uploadInput.setAttribute('accept', 'image/jpeg, image/jpg, image/heic, image/heif');
+        if (profileUploadedFiles && profileUploadedFiles.length > 0) {
+          const allowedExifTypes = ['image/jpeg', 'image/jpg', 'image/heic', 'image/heif'];
+          const nonExifFiles = profileUploadedFiles.filter(f => {
+            const ext = f.name.split('.').pop().toLowerCase();
+            const isAllowedExt = ['jpeg', 'jpg', 'heic', 'heif'].includes(ext);
+            const isAllowedMime = allowedExifTypes.includes(f.type);
+            return !isAllowedExt && !isAllowedMime;
+          });
+          if (nonExifFiles.length > 0) {
+            alert("Warning: For GPS proximity verification, formats like .webp, .png, and .gif rarely contain native EXIF GPS data. Please ensure you are uploading original, unedited photos directly from your phone (.JPG or .HEIC).");
+          }
+        }
+      } else {
+        uploadInput.setAttribute('accept', 'image/*');
+      }
     } else {
       mediaGroup.classList.add('hidden');
-      if (uploadInput) uploadInput.value = '';
+      if (uploadInput) {
+        uploadInput.value = '';
+        uploadInput.setAttribute('accept', 'image/*');
+      }
       if (previewContainer) previewContainer.innerHTML = '';
       profileUploadedFiles = [];
     }
@@ -3431,6 +3451,18 @@ if (uploadInput && previewContainer) {
   uploadInput.addEventListener('change', (e) => {
     previewContainer.innerHTML = '';
     profileUploadedFiles = Array.from(e.target.files);
+    
+    const allowedExifTypes = ['image/jpeg', 'image/jpg', 'image/heic', 'image/heif'];
+    const nonExifFiles = profileUploadedFiles.filter(f => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      const isAllowedExt = ['jpeg', 'jpg', 'heic', 'heif'].includes(ext);
+      const isAllowedMime = allowedExifTypes.includes(f.type);
+      return !isAllowedExt && !isAllowedMime;
+    });
+
+    if (gpsCheckbox && gpsCheckbox.checked && nonExifFiles.length > 0) {
+      alert("Warning: For GPS proximity verification, formats like .webp, .png, and .gif rarely contain native EXIF GPS data. Please ensure you are uploading original, unedited photos directly from your phone (.JPG or .HEIC).");
+    }
     
     profileUploadedFiles.forEach((file) => {
       const reader = new FileReader();
