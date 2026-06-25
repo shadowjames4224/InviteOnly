@@ -2988,40 +2988,6 @@ document.getElementById('btn-admin-apply-role-relation')?.addEventListener('clic
     }
     target.released_by = null;
     successMsg = `✓ Account @${target.username} role updated to Standard User.`;
-  } else if (selectedVal === 'moderator') {
-    target.role = 'moderator';
-    // Ensure they have an inviter even if they were released previously
-    if (target.invited_by === null) {
-      target.invited_by = target.originally_invited_by || target.released_by || currentUser.id;
-    }
-    target.released_by = null;
-    successMsg = `✓ Account @${target.username} role updated to Moderator.`;
-  } else if (selectedVal === 'released') {
-    target.role = 'user';
-    if (target.invited_by !== null) {
-      target.originally_invited_by = target.invited_by;
-      target.released_by = currentUser.id;
-      target.invited_by = null;
-    }
-    successMsg = `✓ Account @${target.username} has been freed (released) as a standalone account.`;
-  }
-
-  computeReputationDecay();
-  saveDbState();
-
-  // Sync changes to Supabase
-  await syncSnapshotChanges(snapshot);
-
-  populateAdminInviterDropdown();
-  populateAdminManageUserDropdown();
-  renderAdminInviteGraph();
-  renderAdminReleasedList();
-  selectAdminProfile(selectedAdminProfileId);
-
-  // Update other views via event trigger
-  window.dispatchEvent(new Event('storage'));
-
-  alert(successMsg);
 });
 
 // Toggle global reviews manager visibility
@@ -3053,3 +3019,44 @@ document.getElementById('btn-close-global-reviews')?.addEventListener('click', (
 // Initial boot
 loadDbState();
 checkAuthentication();
+  if (selectedVal === 'moderator') {
+    if (!currentUserIsRoot) {
+      alert("Only Root Network Admin can promote users to moderator.");
+      return;
+    }
+    target.role = 'moderator';
+    successMsg = `\u2713 Account @${target.username} has been promoted to Moderator.`;
+  } else if (selectedVal === 'user') {
+    target.role = 'user';
+    successMsg = `\u2713 Account @${target.username} has been changed to Standard User.`;
+  } else if (selectedVal === 'released') {
+    target.role = 'user';
+    if (target.invited_by !== null && target.invited_by !== 'null') {
+      target.originally_invited_by = target.invited_by;
+      target.released_by = currentUser.id;
+    }
+    target.invited_by = null;
+    successMsg = `\u2713 Account @${target.username} has been freed (released) as a standalone account.`;
+  }
+
+  computeReputationDecay();
+  saveDbState();
+
+  // Sync changes to Supabase
+  try {
+    await syncSnapshotChanges(snapshot);
+  } catch (err) {
+    alert("Warning: Failed to sync changes to database: " + err.message);
+  }
+
+  populateAdminInviterDropdown();
+  populateAdminManageUserDropdown();
+  renderAdminInviteGraph();
+  renderAdminReleasedList();
+  selectAdminProfile(selectedAdminProfileId);
+
+  // Update other views via event trigger
+  window.dispatchEvent(new Event('storage'));
+
+  alert(successMsg);
+});

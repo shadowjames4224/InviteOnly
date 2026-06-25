@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <select id="select-admin-role-relation"><option value="released">Released</option></select>
+  <button id="btn-admin-apply-role-relation">Apply</button>
+  <div id="admin-released-list"></div>
+  <script>
+    let db = {
+      profiles: [
+        { id: 'shadow_id', role: 'moderator', invited_by: 'root_id', is_active: true, reputation_score: 1, base_reputation: 1 },
+        { id: 'matt_id', username: 'Matt713', role: 'user', invited_by: 'shadow_id', originally_invited_by: null, released_by: null, is_active: true, reputation_score: 1, base_reputation: 1 }
+      ]
+    };
+
+    let currentUser = { id: 'root_id', role: 'key_root_moderator' };
+    let selectedAdminProfileId = 'matt_id';
+
+    function getDbProfilesSnapshot() {
+      return db.profiles.map(p => ({ ...p }));
+    }
+
+    async function syncSnapshotChanges(snapshot) {
+      const updates = [];
+      db.profiles.forEach(p => {
+        const snap = snapshot.find(s => s.id === p.id);
+        if (!snap || snap.invited_by !== p.invited_by || snap.role !== p.role) {
+          const updatePayload = { id: p.id };
+          if (!snap || snap.invited_by !== p.invited_by) updatePayload.invited_by = p.invited_by;
+          if (!snap || snap.role !== p.role) updatePayload.role = p.role;
+          updates.push(updatePayload);
+        }
+      });
+      console.log("Updates sent to server:", updates);
+    }
+
+    document.getElementById('btn-admin-apply-role-relation').addEventListener('click', async () => {
+      const target = db.profiles.find(p => p.id === selectedAdminProfileId);
+      const selectedVal = document.getElementById('select-admin-role-relation').value;
+      const snapshot = getDbProfilesSnapshot();
+      let successMsg = '';
+
+      if (selectedVal === 'released') {
+        target.role = 'user';
+        if (target.invited_by !== null) {
+          target.originally_invited_by = target.invited_by;
+          target.released_by = currentUser.id;
+          target.invited_by = null;
+        }
+        successMsg = `✓ Account @${target.username} has been freed (released) as a standalone account.`;
+      }
+
+      await syncSnapshotChanges(snapshot);
+      console.log("Success:", successMsg);
+    });
+  </script>
+</body>
+</html>
