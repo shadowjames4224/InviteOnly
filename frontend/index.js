@@ -156,8 +156,6 @@ function loadDb() {
 
     saveDbState();
   }
-  syncLiveProfiles();
-  syncLiveReviews();
 }
 
 function saveDbState() {
@@ -672,7 +670,6 @@ function checkLineageCollusion(authorId, voterId) {
 // 4. Forum Feed Rendering & Search
 // ----------------------------------------------------
 function renderFeedReviews() {
-  loadDb();
   const searchInput = document.getElementById('feed-search-input');
   const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
   const sortSelect = document.getElementById('feed-sort-select');
@@ -923,7 +920,6 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
 }
 
 function renderFollowingFeed() {
-  loadDb();
   const feedList = document.getElementById('portal-following-feed-list');
   const settingsRevealConsent = document.getElementById('chk-settings-reveal-low')?.checked || false;
 
@@ -973,7 +969,6 @@ function renderFollowingFeed() {
 }
 
 function renderUsersSearch() {
-  loadDb();
   renderUsersSearchList();
 
   if (selectedUserId) {
@@ -995,7 +990,6 @@ function renderUsersSearch() {
 }
 
 function renderUsersSearchList() {
-  loadDb();
   const searchInput = document.getElementById('users-search-input');
   const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
   const deck = document.getElementById('users-list-deck');
@@ -1059,7 +1053,6 @@ window.selectUserInExplorer = function(userId) {
 };
 
 function renderSelectedUserDetails(userId) {
-  loadDb();
   const detailCard = document.getElementById('selected-user-info-card');
   const reviewList = document.getElementById('user-reviews-list');
   const settingsRevealConsent = document.getElementById('chk-settings-reveal-low')?.checked || false;
@@ -1369,7 +1362,6 @@ function runLineageReputationDecay() {
 // 6. Hierarchical Directory Browser
 // ----------------------------------------------------
 function renderDirectoryExplorer() {
-  loadDb();
   const listDeck = document.getElementById('directory-items-deck');
   const breadcrumbs = document.getElementById('directory-breadcrumbs-bar');
   const detailsCard = document.getElementById('selected-node-info-card');
@@ -2224,6 +2216,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initDropdownTypeaheadFilter();
   initReviewSubmission();
   initPreferences();
+
+  // Sync live profiles and reviews exactly once on load
+  syncLiveProfiles();
+  syncLiveReviews();
 
   // Search input real-time query
   const searchInput = document.getElementById('feed-search-input');
