@@ -2358,10 +2358,10 @@ window.selectAdminProfile = function(profileId) {
         
         item.innerHTML = `
           <div style="flex: 1; min-width: 0; text-align: left;">
-            <div style="font-size: 0.8rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nodeName}</div>
-            <div style="font-size: 0.72rem; color: var(--color-text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.raw_content}</div>
+            <div style="font-size: 0.8rem; font-weight: 600; color: white; word-wrap: break-word;">${nodeName}</div>
+            <div style="font-size: 0.72rem; color: var(--color-text-dim); white-space: normal; word-wrap: break-word; margin-top: 0.25rem;">${r.raw_content}</div>
           </div>
-          <button class="btn btn-danger" onclick="deleteReviewFromConsole('${r.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.72rem; width: auto; background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); border-radius: var(--radius-sm);">Delete</button>
+          <button class="btn btn-danger" onclick="deleteReviewFromConsole('${r.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.72rem; width: auto; background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); border-radius: var(--radius-sm); align-self: flex-start;">Delete</button>
         `;
         userReviewsList.appendChild(item);
       });
