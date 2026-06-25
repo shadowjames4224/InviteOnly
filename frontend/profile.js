@@ -4,6 +4,11 @@
 let db;
 let currentUser = null;
 
+function formatRep(rep) {
+  const val = parseFloat(rep);
+  return isNaN(val) ? '1.0000' : val.toFixed(4);
+}
+
 function getSeedData() {
   return {
     version: 2,
@@ -583,10 +588,10 @@ function renderProfileCard() {
   }
 
   const repEl = document.getElementById('profile-rep');
-  if (repEl) repEl.innerText = currentUser.reputation_score.toFixed(4);
+  if (repEl) repEl.innerText = formatRep(currentUser.reputation_score);
 
   const baseRepEl = document.getElementById('profile-base-rep');
-  if (baseRepEl) baseRepEl.innerText = currentUser.base_reputation.toFixed(4);
+  if (baseRepEl) baseRepEl.innerText = formatRep(currentUser.base_reputation);
 
   const inviter = db.profiles.find(p => p.id === currentUser.invited_by);
   const invitedByEl = document.getElementById('profile-invited-by');
@@ -701,7 +706,7 @@ function renderInviteHub() {
         item.innerHTML = `
           <div>
             <div style="font-size: 0.85rem; font-weight: 600; color: white;">@${invitee.username}</div>
-            <div style="font-size: 0.72rem; color: ${invitee.is_active ? 'var(--color-primary)' : 'var(--color-danger)'};">Status: ${statusText} &bull; Rep: ${invitee.reputation_score.toFixed(4)}</div>
+            <div style="font-size: 0.72rem; color: ${invitee.is_active ? 'var(--color-primary)' : 'var(--color-danger)'};">Status: ${statusText} &bull; Rep: ${formatRep(invitee.reputation_score)}</div>
           </div>
           <div>
             ${actionBtn}
@@ -1068,7 +1073,30 @@ document.getElementById('btn-login')?.addEventListener('click', () => {
     return;
   }
 
-  const profile = db.profiles.find(p => p.access_key === keyInput);
+  // Deduce username from keyInput
+  let usernameFromKey = '';
+  if (keyInput.startsWith('key_')) {
+    const lastUnderscore = keyInput.lastIndexOf('_');
+    if (lastUnderscore > 4) {
+      usernameFromKey = keyInput.substring(4, lastUnderscore);
+    } else {
+      usernameFromKey = keyInput.slice(4);
+    }
+  } else {
+    usernameFromKey = keyInput;
+  }
+
+  // Find profile by access key first, then by matching username (case-insensitive)
+  let profile = db.profiles.find(p => p.access_key === keyInput);
+  if (!profile && usernameFromKey) {
+    profile = db.profiles.find(p => p.username.toLowerCase() === usernameFromKey.toLowerCase());
+    if (profile) {
+      // Update access key in local DB to match the typed key with its suffix
+      profile.access_key = keyInput;
+      saveDbState();
+    }
+  }
+
   if (!profile) {
     errMsg.innerText = 'Error: Access key is not registered in the network.';
     errMsg.classList.remove('hidden');
@@ -1172,12 +1200,28 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
     if (tokenObj) {
       tokenObj.is_used = true;
     }
-    const newId = result.profile.id;
+    const newId = result.profile ? result.profile.id : (result.profile_id || null);
+    if (!newId) {
+      throw new Error("Failed to retrieve profile ID from registration response.");
+    }
     
     // Generate secure random suffix (16 hex chars)
-    const randomArray = new Uint32Array(2);
-    window.crypto.getRandomValues(randomArray);
-    const suffix = Array.from(randomArray).map(n => n.toString(16).padStart(8, '0')).join('');
+    let suffix = '';
+    try {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const randomArray = new Uint32Array(2);
+        window.crypto.getRandomValues(randomArray);
+        suffix = Array.from(randomArray).map(n => n.toString(16).padStart(8, '0')).join('');
+      } else {
+        throw new Error('Web Crypto API not available');
+      }
+    } catch (e) {
+      // Safe fallback
+      const chars = '0123456789abcdef';
+      for (let i = 0; i < 16; i++) {
+        suffix += chars[Math.floor(Math.random() * 16)];
+      }
+    }
     const accessKey = 'key_' + usernameInput + '_' + suffix;
 
     db.profiles.push({
@@ -1185,7 +1229,7 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
       username: usernameInput,
       reputation_score: 1.0000,
       base_reputation: 1.0000,
-      invited_by: result.profile.invited_by || (tokenObj ? tokenObj.inviter_id : null),
+      invited_by: (result.profile && result.profile.invited_by) || (tokenObj ? tokenObj.inviter_id : null),
       is_active: true,
       access_key: accessKey
     });
@@ -1938,7 +1982,7 @@ function populateAdminInviterDropdown() {
   sortedProfiles.forEach(p => {
     const option = document.createElement('option');
     option.value = p.id;
-    option.innerText = `@${p.username} (Rep: ${p.reputation_score.toFixed(4)})`;
+    option.innerText = `@${p.username} (Rep: ${formatRep(p.reputation_score)})`;
     selectEl.appendChild(option);
   });
 
@@ -1956,7 +2000,7 @@ function populateAdminManageUserDropdown() {
   sortedProfiles.forEach(p => {
     const option = document.createElement('option');
     option.value = p.id;
-    option.innerText = `@${p.username} (${p.is_active ? 'Active' : 'Suspended'}, Rep: ${p.reputation_score.toFixed(4)})`;
+    option.innerText = `@${p.username} (${p.is_active ? 'Active' : 'Suspended'}, Rep: ${formatRep(p.reputation_score)})`;
     selectEl.appendChild(option);
   });
   
@@ -2024,7 +2068,7 @@ function renderAdminInviteGraph() {
           <div class="node-item ${isSelected} ${isActiveClass}" onclick="selectAdminProfile('${child.id}')">
             <span class="node-dot"></span>
             <span class="node-name">${child.username}</span>
-            <span class="node-rep">${child.reputation_score.toFixed(4)}</span>
+            <span class="node-rep">${formatRep(child.reputation_score)}</span>
           </div>
         </div>
       `;
@@ -2044,7 +2088,7 @@ function renderAdminInviteGraph() {
         <div class="node-item ${isSelected} ${isActiveClass}" onclick="selectAdminProfile('${root.id}')">
           <span class="node-dot"></span>
           <span class="node-name">${root.username}</span>
-          <span class="node-rep">${root.reputation_score.toFixed(4)}</span>
+          <span class="node-rep">${formatRep(root.reputation_score)}</span>
         </div>
       </div>
     `;
@@ -2099,7 +2143,7 @@ window.selectAdminProfile = function(profileId) {
     }
   }
 
-  document.getElementById('admin-detail-reputation').innerText = profile.reputation_score.toFixed(4);
+  document.getElementById('admin-detail-reputation').innerText = formatRep(profile.reputation_score);
   
   const inviter = db.profiles.find(p => p.id === profile.invited_by);
   document.getElementById('admin-detail-invited-by').innerText = inviter ? inviter.username : 'Root Network Admin';
@@ -2107,7 +2151,7 @@ window.selectAdminProfile = function(profileId) {
   // Pre-populate base reputation input and set toggle status button text
   const inputBaseRep = document.getElementById('input-admin-base-rep');
   if (inputBaseRep) {
-    inputBaseRep.value = profile.base_reputation.toFixed(4);
+    inputBaseRep.value = formatRep(profile.base_reputation);
   }
 
   const btnToggleStatus = document.getElementById('btn-admin-toggle-status');

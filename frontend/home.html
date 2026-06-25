@@ -864,12 +864,28 @@
         if (tokenObj) {
           tokenObj.is_used = true;
         }
-        const newId = result.profile.id;
+        const newId = result.profile ? result.profile.id : (result.profile_id || null);
+        if (!newId) {
+          throw new Error("Failed to retrieve profile ID from registration response.");
+        }
         
         // Generate secure random suffix (16 hex chars)
-        const randomArray = new Uint32Array(2);
-        window.crypto.getRandomValues(randomArray);
-        const suffix = Array.from(randomArray).map(n => n.toString(16).padStart(8, '0')).join('');
+        let suffix = '';
+        try {
+          if (window.crypto && window.crypto.getRandomValues) {
+            const randomArray = new Uint32Array(2);
+            window.crypto.getRandomValues(randomArray);
+            suffix = Array.from(randomArray).map(n => n.toString(16).padStart(8, '0')).join('');
+          } else {
+            throw new Error('Web Crypto API not available');
+          }
+        } catch (e) {
+          // Safe fallback
+          const chars = '0123456789abcdef';
+          for (let i = 0; i < 16; i++) {
+            suffix += chars[Math.floor(Math.random() * 16)];
+          }
+        }
         const accessKey = 'key_' + username + '_' + suffix;
 
         db.profiles.push({
@@ -877,7 +893,7 @@
           username: username,
           reputation_score: 1.0000,
           base_reputation: 1.0000,
-          invited_by: result.profile.invited_by || (tokenObj ? tokenObj.inviter_id : null),
+          invited_by: (result.profile && result.profile.invited_by) || (tokenObj ? tokenObj.inviter_id : null),
           is_active: true,
           access_key: accessKey,
           demographic_group: 'urban_affluent'
@@ -886,21 +902,27 @@
         saveDbState();
 
         msgDiv.className = 'signup-status-message success';
-        msgDiv.innerHTML = `✓ Signup Successful! Your Access Key: <strong style="color: var(--color-primary); font-family: var(--font-mono); font-size: 1.05rem;">${accessKey}</strong><br>Copy this key to sign in.`;
+        msgDiv.innerHTML = `✓ Signup Successful! Your Access Key: <strong style="color: var(--color-primary); font-family: var(--font-mono); font-size: 1.05rem; display: block; margin: 0.5rem 0; word-break: break-all;">${accessKey}</strong><br>Copy this key to sign in. Logging you in automatically...`;
         msgDiv.classList.remove('hidden');
 
         // Clear input fields
         document.getElementById('home-token-input').value = '';
         document.getElementById('home-username-input').value = '';
 
-        // Show profile link tip
+        // Auto-login & Redirect
+        sessionStorage.setItem('current_user_key', accessKey);
+
         tipDiv.innerHTML = `
           <div style="margin-top: 1rem; padding: 1.25rem; background: rgba(16,185,129,0.06); border: 1px solid var(--border-color); border-radius: var(--radius-md); text-align: center;">
-            <p style="margin-bottom: 0.75rem; font-size: 0.9rem;">Your account is active on the network ledger.</p>
-            <button class="btn btn-primary" onclick="loginAndRedirect('${accessKey}')">Log In & Go to My Profile</button>
+            <p style="margin-bottom: 0.75rem; font-size: 0.9rem;">You are being redirected to your profile portal in 3 seconds...</p>
+            <button class="btn btn-primary" onclick="loginAndRedirect('${accessKey}')">Go to My Profile Now</button>
           </div>
         `;
         tipDiv.classList.remove('hidden');
+
+        setTimeout(() => {
+          window.location.href = 'profile.html';
+        }, 3000);
       } catch (err) {
         msgDiv.className = 'signup-status-message error';
         msgDiv.innerText = 'Error: ' + err.message;
