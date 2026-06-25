@@ -229,6 +229,8 @@ async function syncLiveProfiles() {
             localP.reputation_score = parseFloat(liveP.reputation_score);
             localP.invited_by = liveP.invited_by;
             localP.is_active = liveP.is_active;
+            localP.released_by = liveP.released_by;
+            localP.originally_invited_by = liveP.originally_invited_by;
           } else {
             db.profiles.push({
               id: liveP.id,
@@ -237,7 +239,9 @@ async function syncLiveProfiles() {
               base_reputation: parseFloat(liveP.reputation_score),
               invited_by: liveP.invited_by,
               is_active: liveP.is_active,
-              access_key: 'key_' + liveP.username
+              access_key: 'key_' + liveP.username,
+              released_by: liveP.released_by,
+              originally_invited_by: liveP.originally_invited_by
             });
           }
         });
@@ -246,6 +250,7 @@ async function syncLiveProfiles() {
           renderAdminInviteGraph();
           populateAdminManageUserDropdown();
           populateAdminInviterDropdown();
+          renderAdminReleasedList();
         }
       }
     }
@@ -611,35 +616,33 @@ function renderInviteHub() {
   const myPendingTokens = db.invite_tokens.filter(t => t.inviter_id === currentUser.id && !t.is_used);
   const totalGenerated = db.invite_tokens.filter(t => t.inviter_id === currentUser.id).length;
 
+  let remaining = 0;
+  let quotaMax = 5;
+  if (isMod) {
+    quotaMax = 20;
+    const releasedCount = db.profiles.filter(p => p.originally_invited_by === currentUser.id && p.released_by === currentUser.id).length;
+    const consumed = totalGenerated - releasedCount;
+    remaining = Math.max(0, 20 - consumed);
+  } else {
+    remaining = Math.max(0, 5 - totalGenerated);
+  }
+
   const invitesLeftEl = document.getElementById('invites-left');
   if (invitesLeftEl) {
-    if (isMod) {
-      invitesLeftEl.innerText = `Unlimited`;
-      invitesLeftEl.className = 'badge privacy-badge';
-    } else {
-      const remaining = Math.max(0, 5 - totalGenerated);
-      invitesLeftEl.innerText = `${remaining} Left`;
-      invitesLeftEl.className = remaining > 0 ? 'badge privacy-badge' : 'badge count-badge';
-    }
+    invitesLeftEl.innerText = `${remaining} Left`;
+    invitesLeftEl.className = remaining > 0 ? 'badge privacy-badge' : 'badge count-badge';
   }
 
   const btnGen = document.getElementById('btn-generate-profile-token');
   if (btnGen) {
-    if (isMod) {
+    if (remaining === 0) {
+      btnGen.disabled = true;
+      btnGen.innerText = `Invite Quota Reached (${quotaMax}/${quotaMax})`;
+      btnGen.className = 'btn btn-secondary btn-full';
+    } else {
       btnGen.disabled = false;
       btnGen.innerText = 'Generate Invite Token';
       btnGen.className = 'btn btn-primary btn-full';
-    } else {
-      const remaining = Math.max(0, 5 - totalGenerated);
-      if (remaining === 0) {
-        btnGen.disabled = true;
-        btnGen.innerText = 'Invite Quota Reached (' + totalGenerated + '/5)';
-        btnGen.className = 'btn btn-secondary btn-full';
-      } else {
-        btnGen.disabled = false;
-        btnGen.innerText = 'Generate Invite Token';
-        btnGen.className = 'btn btn-primary btn-full';
-      }
     }
   }
 
@@ -689,7 +692,10 @@ function renderInviteHub() {
         
         let actionBtn = '';
         if (invitee.is_active) {
-          actionBtn = `<button class="btn btn-danger" onclick="revokeRedeemedUser('${invitee.id}')" style="font-size: 0.68rem; padding: 0.2rem 0.5rem; width: auto; border-radius: var(--radius-sm); background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger);">Revoke</button>`;
+          actionBtn = `<button class="btn btn-danger" onclick="revokeRedeemedUser('${invitee.id}')" style="font-size: 0.68rem; padding: 0.2rem 0.5rem; width: auto; border-radius: var(--radius-sm); background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); margin-right: 0.35rem;">Revoke</button>`;
+          if (isMod) {
+            actionBtn += `<button class="btn btn-primary" onclick="releaseUser('${invitee.id}')" style="font-size: 0.68rem; padding: 0.2rem 0.5rem; width: auto; border-radius: var(--radius-sm); background: var(--color-primary); border: none; color: white;">Release</button>`;
+          }
         } else {
           actionBtn = `<span style="font-size: 0.72rem; color: var(--color-text-dim); font-weight: 500;">Suspended</span>`;
         }
@@ -776,9 +782,49 @@ window.revokeRedeemedUser = async function(inviteeId) {
     selectAdminProfile(selectedAdminProfileId);
   }
   
-  window.dispatchEvent(new Event('storage'));
-  
   alert(`Successfully revoked @${invitee.username} and cascade-revoked ${revokedList.length - 1} downstream profiles.`);
+};
+
+window.releaseUser = async function(targetId) {
+  const target = db.profiles.find(p => p.id === targetId);
+  if (!target) return;
+
+  if (!confirm(`Are you sure you want to release @${target.username} to a standalone account? This will detach them from your hierarchical tree (preventing cascade revocation) and free up 1 slot in your invite quota.`)) {
+    return;
+  }
+
+  const userKey = sessionStorage.getItem('current_user_key');
+  try {
+    const response = await fetch('https://api.inviteonlyreviews.com/api/admin/release-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        authKey: userKey,
+        targetId: targetId
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to release user on Cloudflare Worker.');
+    }
+
+    // Success! Update local db state and sync
+    alert(`Successfully released @${target.username} to a standalone account.`);
+    
+    // Update local state temporarily
+    target.originally_invited_by = currentUser.id;
+    target.released_by = currentUser.id;
+    target.invited_by = null;
+    saveDbState();
+    
+    // Sync and render
+    await syncLiveProfiles();
+    renderInviteHub();
+  } catch (e) {
+    console.error("Error releasing user:", e);
+    alert(`Error releasing user: ${e.message}`);
+  }
 };
 
 function populateMerchantDropdown() {
@@ -1333,9 +1379,16 @@ window.quickLogin = function(key) {
 // Generate invite token
 document.getElementById('btn-generate-profile-token')?.addEventListener('click', async () => {
   const isMod = currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001';
-  if (!isMod) {
-    const myTokens = db.invite_tokens.filter(t => t.inviter_id === currentUser.id);
-    if (myTokens.length >= 5) {
+  const totalGenerated = db.invite_tokens.filter(t => t.inviter_id === currentUser.id).length;
+  if (isMod) {
+    const releasedCount = db.profiles.filter(p => p.originally_invited_by === currentUser.id && p.released_by === currentUser.id).length;
+    const consumed = totalGenerated - releasedCount;
+    if (consumed >= 20) {
+      alert("Quota reached: You cannot have more than 20 active invited accounts as a moderator.");
+      return;
+    }
+  } else {
+    if (totalGenerated >= 5) {
       alert("Quota reached: You cannot generate more than 5 invite tokens.");
       return;
     }
@@ -2031,6 +2084,55 @@ function initAdminPanel() {
   populateAdminManageUserDropdown();
   renderAdminInviteGraph();
   resetAdminProfileDetails();
+  renderAdminReleasedList();
+}
+
+function renderAdminReleasedList() {
+  const container = document.getElementById('admin-released-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // Get all accounts that were originally invited by a moderator, and released by a moderator
+  const isModProfile = (profileId) => {
+    if (!profileId) return false;
+    if (profileId === '00000000-0000-0000-0000-000000000001') return true;
+    const parent = db.profiles.find(p => p.id === profileId);
+    return parent && parent.invited_by === '00000000-0000-0000-0000-000000000001';
+  };
+
+  const releasedProfiles = db.profiles.filter(p => p.released_by && isModProfile(p.released_by));
+
+  if (releasedProfiles.length === 0) {
+    container.innerHTML = '<div class="details-placeholder" style="text-align:center; padding:1rem 0; font-size: 0.8rem;">No released standalone accounts.</div>';
+  } else {
+    releasedProfiles.forEach(p => {
+      const originalInviter = db.profiles.find(inv => inv.id === p.originally_invited_by);
+      const releaser = db.profiles.find(rel => rel.id === p.released_by);
+      
+      const originalInviterName = originalInviter ? '@' + originalInviter.username : 'Unknown';
+      const releaserName = releaser ? '@' + releaser.username : 'Unknown';
+
+      const item = document.createElement('div');
+      item.style.display = 'flex';
+      item.style.justifyContent = 'space-between';
+      item.style.alignItems = 'center';
+      item.style.padding = '0.5rem 0.75rem';
+      item.style.background = 'rgba(255,255,255,0.02)';
+      item.style.border = '1px solid var(--border-color)';
+      item.style.borderRadius = 'var(--radius-sm)';
+
+      item.innerHTML = `
+        <div>
+          <div style="font-size: 0.85rem; font-weight: 600; color: white;">@${p.username} (Standalone)</div>
+          <div style="font-size: 0.72rem; color: var(--color-text-dim);">Originally Invited by: ${originalInviterName} &bull; Released by: ${releaserName}</div>
+        </div>
+        <div>
+          <span class="badge privacy-badge" style="font-size: 0.65rem; padding: 0.15rem 0.4rem;">Released</span>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
 }
 
 function resetAdminProfileDetails() {

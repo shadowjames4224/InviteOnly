@@ -222,20 +222,52 @@ export default {
           targetProfile = targets[0];
         }
 
-        // Enforce 5-invite quota for non-moderator target inviter
+        // Enforce quota limits: 20 for moderators, 5 for standard users
         const isTargetMod = targetProfile.id === '00000000-0000-0000-0000-000000000001' || targetProfile.invited_by === '00000000-0000-0000-0000-000000000001';
-        if (!isTargetMod) {
-          const countRes = await fetch(`${env.SUPABASE_URL}/rest/v1/invite_tokens?inviter_id=eq.${targetProfile.id}&is_used=eq.false`, {
+        if (isTargetMod) {
+          // Fetch all generated tokens
+          const tokensRes = await fetch(`${env.SUPABASE_URL}/rest/v1/invite_tokens?inviter_id=eq.${targetProfile.id}&select=token`, {
             method: 'GET',
             headers: {
               'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
               'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
             }
           });
+          const tokens = await tokensRes.json();
+          const totalGeneratedTokens = Array.isArray(tokens) ? tokens.length : 0;
 
-          const activeTokens = await countRes.json();
-          if (countRes.ok && activeTokens && activeTokens.length >= 5) {
-            return new Response(JSON.stringify({ error: `Quota reached: @${targetProfile.username} cannot generate more than 5 active invite tokens.` }), {
+          // Fetch count of released users
+          const releasedRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?originally_invited_by=eq.${targetProfile.id}&released_by=eq.${targetProfile.id}&select=id`, {
+            method: 'GET',
+            headers: {
+              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+            }
+          });
+          const released = await releasedRes.json();
+          const releasedInviteesCount = Array.isArray(released) ? released.length : 0;
+
+          const consumed = totalGeneratedTokens - releasedInviteesCount;
+          if (consumed >= 20) {
+            return new Response(JSON.stringify({ error: `Quota reached: Moderator @${targetProfile.username} cannot have more than 20 active invited accounts.` }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        } else {
+          // For non-moderators, limit is 5 total generated tokens
+          const tokensRes = await fetch(`${env.SUPABASE_URL}/rest/v1/invite_tokens?inviter_id=eq.${targetProfile.id}&select=token`, {
+            method: 'GET',
+            headers: {
+              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+            }
+          });
+          const tokens = await tokensRes.json();
+          const totalGeneratedTokens = Array.isArray(tokens) ? tokens.length : 0;
+
+          if (totalGeneratedTokens >= 5) {
+            return new Response(JSON.stringify({ error: `Quota reached: @${targetProfile.username} cannot generate more than 5 total invite tokens.` }), {
               status: 400,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
@@ -286,7 +318,7 @@ export default {
 
       // Route 4: Fetch All Profiles Endpoint (for lineage sync)
       if (url.pathname === '/api/profiles' && request.method === 'GET') {
-        const response = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?select=id,username,reputation_score,invited_by,is_active`, {
+        const response = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?select=id,username,reputation_score,invited_by,is_active,released_by,originally_invited_by`, {
           method: 'GET',
           headers: {
             'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -905,6 +937,93 @@ export default {
             errMessage = errObj.message || errMessage;
           } catch(e) {}
           return new Response(JSON.stringify({ error: errMessage }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Route 8d: POST /api/admin/release-user
+      if (url.pathname === '/api/admin/release-user' && request.method === 'POST') {
+        const { authKey, targetId } = await request.json();
+        if (!authKey || !targetId) {
+          return new Response(JSON.stringify({ error: 'Missing parameters: authKey and targetId are required.' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Invalid access key.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        if (!profile.is_active) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Account is suspended.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const isMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+        if (!isMod) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can release users.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Fetch target profile first to verify they are currently invited by the caller
+        const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${targetId}&select=id,invited_by`, {
+          method: 'GET',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+          }
+        });
+
+        const targets = await targetRes.json();
+        if (!targetRes.ok || !targets || targets.length === 0) {
+          return new Response(JSON.stringify({ error: 'Target profile not found.' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const target = targets[0];
+        if (target.invited_by !== profile.id) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: You can only release users that you directly invited.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Perform the release transaction on Supabase
+        const updateRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${targetId}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            originally_invited_by: target.invited_by,
+            released_by: target.invited_by,
+            invited_by: null
+          })
+        });
+
+        if (!updateRes.ok) {
+          const errText = await updateRes.text();
+          return new Response(JSON.stringify({ error: `Database error during release: ${errText}` }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
