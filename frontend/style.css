@@ -63,7 +63,7 @@ body {
 /* Header styling */
 header {
   background: rgba(10, 10, 12, 0.95);
-  -webkit-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -176,7 +176,8 @@ header {
 .card {
   background: var(--bg-card);
   /* backdrop-filter: none; removed to fix Chrome strobe */
-  /* -webkit-  will-change: transform; */
+  /* -webkit-backdrop-filter: none;
+  will-change: transform; */
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.75rem;
@@ -701,7 +702,7 @@ header {
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
-  -webkit-}
+}
 
 .review-card:hover {
   background: rgba(40, 51, 70, 0.5);
@@ -1888,7 +1889,7 @@ footer {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  -webkit-  position: relative;
+  position: relative;
   overflow: hidden;
 }
 
@@ -2888,7 +2889,7 @@ footer {
     border-bottom: 1px solid var(--border-color);
     padding: 1rem 1.25rem 0.5rem 1.25rem;
     background: rgba(10, 10, 15, 0.95);
-    -webkit-    box-sizing: border-box;
+    box-sizing: border-box;
     z-index: 1000;
   }
 
