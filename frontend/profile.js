@@ -1,6 +1,84 @@
 // profile.js - Consumer Profile Dashboard Logic
 // Handles credentials login, review submission, invite limits, and cross-client storage sync.
 
+function showAccessKeyModal(title, message, key) {
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.width = '100vw';
+  overlay.style.height = '100vh';
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+  overlay.style.display = 'flex';
+  overlay.style.alignItems = 'center';
+  overlay.style.justifyContent = 'center';
+  overlay.style.zIndex = '9999';
+
+  const modal = document.createElement('div');
+  modal.style.background = 'var(--bg-card)';
+  modal.style.padding = '2rem';
+  modal.style.borderRadius = 'var(--radius-md)';
+  modal.style.border = '1px solid var(--border-color)';
+  modal.style.maxWidth = '450px';
+  modal.style.width = '90%';
+  modal.style.textAlign = 'center';
+  modal.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+
+  const titleEl = document.createElement('h3');
+  titleEl.innerText = title;
+  titleEl.style.marginTop = '0';
+  titleEl.style.color = 'var(--color-success)';
+
+  const msgEl = document.createElement('p');
+  msgEl.innerText = message;
+  msgEl.style.fontSize = '0.9rem';
+  msgEl.style.color = 'var(--color-text-muted)';
+  msgEl.style.marginBottom = '1.5rem';
+
+  const keyInput = document.createElement('input');
+  keyInput.type = 'text';
+  keyInput.value = key;
+  keyInput.readOnly = true;
+  keyInput.style.width = '100%';
+  keyInput.style.padding = '0.75rem';
+  keyInput.style.background = 'rgba(0,0,0,0.3)';
+  keyInput.style.border = '1px solid var(--border-color)';
+  keyInput.style.color = 'var(--color-text-main)';
+  keyInput.style.borderRadius = 'var(--radius-sm)';
+  keyInput.style.marginBottom = '1rem';
+  keyInput.style.textAlign = 'center';
+  keyInput.style.fontFamily = 'var(--font-mono)';
+  
+  const copyBtn = document.createElement('button');
+  copyBtn.innerText = 'Copy to Clipboard';
+  copyBtn.className = 'btn btn-primary btn-full';
+  copyBtn.style.marginBottom = '0.75rem';
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(key).then(() => {
+      copyBtn.innerText = '✓ Copied!';
+      setTimeout(() => {
+        copyBtn.innerText = 'Copy to Clipboard';
+      }, 2000);
+    });
+  };
+
+  const closeBtn = document.createElement('button');
+  closeBtn.innerText = 'I have saved it';
+  closeBtn.className = 'btn btn-secondary btn-full';
+  closeBtn.onclick = () => {
+    document.body.removeChild(overlay);
+  };
+
+  modal.appendChild(titleEl);
+  modal.appendChild(msgEl);
+  modal.appendChild(keyInput);
+  modal.appendChild(copyBtn);
+  modal.appendChild(closeBtn);
+  overlay.appendChild(modal);
+
+  document.body.appendChild(overlay);
+}
+
 let db;
 let currentUser = null;
 
@@ -982,11 +1060,11 @@ function renderMyReviewsFeed() {
     }
 
     const html = `
-      <div class="review-card ${cardClass}" style="margin-bottom: 0px;">
+      <div class="review-card ${cardClass}" style="margin-bottom: 0px; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word;">
         <div class="review-card-header">
           <div>
             <strong>${node ? node.name : 'Unknown Node'}</strong>
-            <span class="node-path" style="display: block; font-size: 0.7rem; margin-top: 0.25rem; background: transparent; border: none; color: var(--color-text-dim); padding: 0;">
+            <span class="node-path" style="display: block; font-size: 0.7rem; margin-top: 0.25rem; background: transparent; border: none; color: var(--color-text-dim); padding: 0; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
               ${node ? getNodePathString(node) : ''}
             </span>
             ${locHTML}
@@ -1149,57 +1227,77 @@ document.getElementById('review-new-global-entity')?.addEventListener('change', 
 // Verification logs disabled
 
 // Login trigger
-document.getElementById('btn-login')?.addEventListener('click', () => {
+document.getElementById('btn-login')?.addEventListener('click', async () => {
   const keyInput = document.getElementById('login-access-key').value.trim();
   const errMsg = document.getElementById('login-error-msg');
-  
+  const btn = document.getElementById('btn-login');
+
   if (!keyInput) {
     errMsg.innerText = 'Error: Access key cannot be empty.';
     errMsg.classList.remove('hidden');
     return;
   }
 
-  // Deduce username from keyInput
-  let usernameFromKey = '';
-  if (keyInput.startsWith('key_')) {
-    const lastUnderscore = keyInput.lastIndexOf('_');
-    if (lastUnderscore > 4) {
-      usernameFromKey = keyInput.substring(4, lastUnderscore);
+  btn.disabled = true;
+  btn.innerText = 'Verifying...';
+
+  try {
+    const res = await fetch('https://api.inviteonlyreviews.com/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authKey: keyInput })
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      errMsg.innerText = 'Error: ' + (data.error || 'Invalid credentials or server error.');
+      errMsg.classList.remove('hidden');
+      btn.disabled = false;
+      btn.innerText = 'Access Network';
+      return;
+    }
+
+    const data = await res.json();
+    const profile = data.profile;
+
+    if (!profile.is_active) {
+      errMsg.innerText = 'Security Block: This profile has been cascade-revoked due to trust contagion.';
+      errMsg.classList.remove('hidden');
+      btn.disabled = false;
+      btn.innerText = 'Access Network';
+      return;
+    }
+
+    // Successfully authenticated
+    errMsg.classList.add('hidden');
+    
+    // Update local db if not present (in case of fresh browser login)
+    let localP = db.profiles.find(p => p.id === profile.id);
+    if (localP) {
+      localP.username = profile.username;
+      localP.reputation_score = profile.reputation_score;
+      localP.invited_by = profile.invited_by;
+      localP.is_active = profile.is_active;
+      localP.role = profile.role;
+      localP.access_key = keyInput; // Cache it locally for the session if needed
     } else {
-      usernameFromKey = keyInput.slice(4);
-    }
-  } else {
-    usernameFromKey = keyInput;
-  }
-
-  // Find profile by access key first, then by matching username (case-insensitive)
-  let profile = db.profiles.find(p => p.access_key === keyInput);
-  if (!profile && usernameFromKey) {
-    profile = db.profiles.find(p => p.username.toLowerCase() === usernameFromKey.toLowerCase());
-    if (profile) {
-      // Update access key in local DB to match the typed key with its suffix
       profile.access_key = keyInput;
-      saveDbState();
+      db.profiles.push(profile);
     }
-  }
+    saveDbState();
 
-  if (!profile) {
-    errMsg.innerText = 'Error: Access key is not registered in the network.';
+    sessionStorage.setItem('current_user_key', keyInput);
+    currentUser = profile;
+    showDashboard();
+
+  } catch (err) {
+    console.error(err);
+    errMsg.innerText = 'Error connecting to verification server.';
     errMsg.classList.remove('hidden');
-    return;
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Access Network';
   }
-
-  if (!profile.is_active) {
-    errMsg.innerText = 'Security Block: This profile has been cascade-revoked due to trust contagion.';
-    errMsg.classList.remove('hidden');
-    return;
-  }
-
-  // Successfully authenticated
-  errMsg.classList.add('hidden');
-  sessionStorage.setItem('current_user_key', keyInput);
-  currentUser = profile;
-  showDashboard();
 });
 
 // Toggle signup form visibility in Login Gate
@@ -1266,31 +1364,6 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
   errMsg.classList.remove('hidden');
 
   try {
-    const response = await fetch('https://api.inviteonlyreviews.com/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        inviteToken: tokenInput,
-        username: usernameInput,
-        password: 'password123'
-      })
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Edge registration transaction failed.');
-    }
-
-    // Success: Sync local state
-    if (tokenObj) {
-      tokenObj.is_used = true;
-    }
-    const newId = result.profile ? result.profile.id : (result.profile_id || null);
-    if (!newId) {
-      throw new Error("Failed to retrieve profile ID from registration response.");
-    }
-    
     // Generate secure random suffix (16 hex chars)
     let suffix = '';
     try {
@@ -1310,6 +1383,31 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
     }
     const accessKey = 'key_' + usernameInput + '_' + suffix;
 
+    const response = await fetch('https://api.inviteonlyreviews.com/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inviteToken: tokenInput,
+        username: usernameInput,
+        password: accessKey
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Edge registration transaction failed.');
+    }
+
+    // Success: Sync local state
+    if (tokenObj) {
+      tokenObj.is_used = true;
+    }
+    const newId = result.profile ? result.profile.id : (result.profile_id || null);
+    if (!newId) {
+      throw new Error("Failed to retrieve profile ID from registration response.");
+    }
+    
     db.profiles.push({
       id: newId,
       username: usernameInput,
@@ -1326,7 +1424,7 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
     errMsg.className = 'signup-status-message success';
     errMsg.classList.remove('hidden');
 
-    alert(`✓ Registration successful!\n\nYour Private Access Key is:\n${accessKey}\n\nIMPORTANT: Copy and save this key. You will need it to log in next time.`);
+    showAccessKeyModal('✓ Registration successful!', 'IMPORTANT: Copy and save this key. You will need it to log in next time.', accessKey);
 
     // Clear inputs
     document.getElementById('profile-reg-token').value = '';
@@ -1357,7 +1455,7 @@ document.getElementById('btn-logout')?.addEventListener('click', () => {
 // Update Memorable Key Suffix
 const btnUpdateKeySuffix = document.getElementById('btn-update-key-suffix');
 if (btnUpdateKeySuffix) {
-  btnUpdateKeySuffix.addEventListener('click', () => {
+  btnUpdateKeySuffix.addEventListener('click', async () => {
     const suffixInput = document.getElementById('custom-key-suffix');
     if (!suffixInput) return;
     const suffix = suffixInput.value.trim();
@@ -1382,32 +1480,64 @@ if (btnUpdateKeySuffix) {
       return;
     }
 
-    // Update access key
-    const newKey = `key_${currentUser.username}_${suffix}`;
-    
-    // Find current user's profile in db.profiles and update it
-    const profile = db.profiles.find(p => p.id === currentUser.id);
-    if (profile) {
-      profile.access_key = newKey;
-      currentUser.access_key = newKey;
+    const currentKey = sessionStorage.getItem('current_user_key');
+    if (!currentKey) {
+      alert("Error: Authentication key lost from session. Please log in again.");
+      return;
     }
 
-    // Save changes to localStorage database state
-    saveDbState();
+    // Update access key
+    const newKey = `key_${currentUser.username}_${suffix}`;
 
-    // Update sessionStorage to keep session active with the new key
-    sessionStorage.setItem('current_user_key', newKey);
+    btnUpdateKeySuffix.disabled = true;
+    btnUpdateKeySuffix.innerText = 'Updating...';
 
-    // Clear the input
-    suffixInput.value = '';
+    try {
+      const res = await fetch('https://api.inviteonlyreviews.com/api/profile/update-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authKey: currentKey,
+          newKey: newKey
+        })
+      });
 
-    // Refresh UI preview
-    renderProfileCard();
+      if (!res.ok) {
+        const data = await res.json().catch(()=>({}));
+        alert("Error: " + (data.error || 'Failed to update access key.'));
+        return;
+      }
 
-    alert(`✓ Access key updated successfully!\n\nYour new Access Key is: ${newKey}\n\nPlease copy and save this key to log in next time.`);
+      // Find current user's profile in db.profiles and update it locally
+      const profile = db.profiles.find(p => p.id === currentUser.id);
+      if (profile) {
+        profile.access_key = newKey;
+        currentUser.access_key = newKey;
+      }
+
+      // Save changes to localStorage database state
+      saveDbState();
+
+      // Update sessionStorage to keep session active with the new key
+      sessionStorage.setItem('current_user_key', newKey);
+
+      // Clear the input
+      suffixInput.value = '';
+
+      // Refresh UI preview
+      renderProfileCard();
+
+      showAccessKeyModal('✓ Access key updated successfully!', 'Please copy and save this key to log in next time.', newKey);
+
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred connecting to the server.");
+    } finally {
+      btnUpdateKeySuffix.disabled = false;
+      btnUpdateKeySuffix.innerText = 'Update Credentials';
+    }
   });
 }
-
 
 // Quick login mapping
 window.quickLogin = function(key) {
@@ -2770,7 +2900,8 @@ document.getElementById('btn-admin-create-user')?.addEventListener('click', asyn
     username: usernameInput,
     reputation_score: baseRep,
     invited_by: parentProfile.id,
-    is_active: true
+    is_active: true,
+    access_key: accessKey
   });
 
   const snapshot = getDbProfilesSnapshot();
@@ -2794,7 +2925,7 @@ document.getElementById('btn-admin-create-user')?.addEventListener('click', asyn
   // Update other views via event trigger
   window.dispatchEvent(new Event('storage'));
 
-  alert(`✓ Profile successfully created directly!\nUsername: @${usernameInput}\nAccess Key: ${accessKey}`);
+  showAccessKeyModal('✓ Profile successfully created directly!', `Username: @${usernameInput}\n\nPlease copy and save the Access Key below:`, accessKey);
 });
 
 // Toggle user status (suspend / reactivate)

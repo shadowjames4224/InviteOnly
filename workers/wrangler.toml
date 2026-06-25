@@ -1,4 +1,4 @@
-name = "review-edge-scrubber"
+name = "inviteonly-scrubber"
 main = "edge-worker.ts"
 compatibility_date = "2024-03-01"
 

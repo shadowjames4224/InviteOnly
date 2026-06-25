@@ -536,12 +536,14 @@ export default {
         }
 
         if (action === 'create') {
-          if (!newProfileData || !newProfileData.id || !newProfileData.username) {
-            return new Response(JSON.stringify({ error: 'Missing profile data.' }), {
+          if (!newProfileData || !newProfileData.id || !newProfileData.username || !newProfileData.access_key) {
+            return new Response(JSON.stringify({ error: 'Missing profile data or access key.' }), {
               status: 400,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           }
+
+          const hashedKey = await hashKey(newProfileData.access_key);
 
           // Insert direct user profile
           const insertRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles`, {
@@ -556,7 +558,8 @@ export default {
               username: newProfileData.username,
               reputation_score: newProfileData.reputation_score,
               invited_by: newProfileData.invited_by,
-              is_active: newProfileData.is_active
+              is_active: newProfileData.is_active,
+              access_key_hash: hashedKey
             })
           });
 
@@ -1225,6 +1228,57 @@ export default {
         });
       }
 
+      // New Route: POST /api/profile/update-key
+      if (url.pathname === '/api/profile/update-key' && request.method === 'POST') {
+        const { authKey, newKey } = await request.json();
+        if (!authKey || !newKey) {
+           return new Response(JSON.stringify({ error: 'Missing key update data.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) return new Response(JSON.stringify({ error: 'Unauthorized.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+
+        const hashedKey = await hashKey(newKey);
+
+        const patchRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${profile.id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ access_key_hash: hashedKey })
+        });
+        
+        if (!patchRes.ok) return new Response(JSON.stringify({ error: 'Failed to update access key.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // New Route: POST /api/auth/verify
+      if (url.pathname === '/api/auth/verify' && request.method === 'POST') {
+        const { authKey } = await request.json();
+        if (!authKey) {
+          return new Response(JSON.stringify({ error: 'Missing authKey.' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Invalid credentials.' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({ success: true, profile }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       return new Response('Route Not Found', { status: 404, headers: corsHeaders });
 
     } catch (err) {
@@ -1350,8 +1404,17 @@ function parseRationalArray(dataView, offset, count, littleEndian) {
   return arr;
 }
 
+async function hashKey(key) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(key);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function authenticateUser(authKey, env) {
   if (!authKey) return null;
+  const hashedKey = await hashKey(authKey);
+
   const seedKeyMap = {
     'key_root_moderator': 'root_moderator'
   };
@@ -1369,7 +1432,7 @@ async function authenticateUser(authKey, env) {
   }
 
   try {
-    const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by,role`, {
+    const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by,role,access_key_hash`, {
       method: 'GET',
       headers: {
         'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -1380,7 +1443,28 @@ async function authenticateUser(authKey, env) {
     if (!profileRes.ok) return null;
     const profiles = await profileRes.json();
     if (!profiles || profiles.length === 0) return null;
-    return profiles[0];
+    
+    const profile = profiles[0];
+    
+    // Migration fallback: If hash is null, we assume this is their first login and save the hash
+    if (!profile.access_key_hash) {
+      // Fire and forget update
+      fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${profile.id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ access_key_hash: hashedKey })
+      }).catch(e => console.error(e));
+      return profile;
+    }
+
+    // Verify hash
+    if (profile.access_key_hash !== hashedKey) return null;
+
+    return profile;
   } catch (e) {
     return null;
   }
