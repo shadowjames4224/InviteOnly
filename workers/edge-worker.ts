@@ -5,7 +5,7 @@ export default {
     // CORS Headers to allow requests from your frontend portal
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 
@@ -641,7 +641,8 @@ export default {
               slug: n.slug,
               node_type: n.node_type,
               address: n.address || null,
-              coordinates: n.coordinates || null
+              coordinates: n.coordinates || null,
+              aliases: n.aliases || []
             })))
           });
           if (!nodesInsert.ok) {
@@ -839,6 +840,71 @@ export default {
         if (!deleteRes.ok) {
           const errText = await deleteRes.text();
           return new Response(JSON.stringify({ error: `Failed to delete space: ${errText}` }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Route 8c: POST /api/admin/merge-nodes
+      if (url.pathname === '/api/admin/merge-nodes' && request.method === 'POST') {
+        const { authKey, sourceNodeId, targetNodeId } = await request.json();
+        if (!authKey || !sourceNodeId || !targetNodeId) {
+          return new Response(JSON.stringify({ error: 'Missing parameters: authKey, sourceNodeId, and targetNodeId are required.' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Invalid access key.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        if (!profile.is_active) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Account is suspended.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const isMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+        if (!isMod) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can merge spaces.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Call Supabase Database RPC merge_taxonomy_nodes
+        const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/merge_taxonomy_nodes`, {
+          method: 'POST',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            p_source_id: sourceNodeId,
+            p_target_id: targetNodeId
+          })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          let errMessage = 'Database error occurred during merge.';
+          try {
+            const errObj = JSON.parse(errText);
+            errMessage = errObj.message || errMessage;
+          } catch(e) {}
+          return new Response(JSON.stringify({ error: errMessage }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });

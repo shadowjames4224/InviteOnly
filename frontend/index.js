@@ -5,6 +5,30 @@ let db;
 let currentUser = null;
 let activeTagFilter = null;
 let currentDirectoryPath = []; // Array of node objects representing breadcrumb trail
+let selectedUserId = null;
+
+// Levenshtein Distance for fuzzy matching spelling variations
+function getEditDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
 
 // Seed Data Fallback (client-side mock DB)
 function getSeedData() {
@@ -547,6 +571,8 @@ function initTabNavigation() {
         renderFeedReviews();
       } else if (targetId === 'following-view') {
         renderFollowingFeed();
+      } else if (targetId === 'users-view') {
+        renderUsersSearch();
       } else if (targetId === 'submit-view') {
         populateDropdowns();
         initAddressAutocomplete();
@@ -938,6 +964,202 @@ function renderFollowingFeed() {
   });
 }
 
+function renderUsersSearch() {
+  loadDb();
+  renderUsersSearchList();
+
+  if (selectedUserId) {
+    renderSelectedUserDetails(selectedUserId);
+  } else {
+    const detailCard = document.getElementById('selected-user-info-card');
+    if (detailCard) {
+      detailCard.innerHTML = `
+        <div class="empty-feed-placeholder" style="text-align: center; padding: 3rem 1rem;">
+          <p style="color: #a1a1aa; font-size: 0.95rem;">Select a reviewer from the left sidebar to view details</p>
+        </div>
+      `;
+    }
+    const reviewList = document.getElementById('user-reviews-list');
+    if (reviewList) {
+      reviewList.innerHTML = '';
+    }
+  }
+}
+
+function renderUsersSearchList() {
+  loadDb();
+  const searchInput = document.getElementById('users-search-input');
+  const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const deck = document.getElementById('users-list-deck');
+  const countBadge = document.getElementById('users-count-badge');
+
+  if (!deck) return;
+  deck.innerHTML = '';
+
+  let profiles = db.profiles;
+
+  if (searchVal) {
+    profiles = profiles.filter(p => p.username.toLowerCase().includes(searchVal));
+  }
+
+  profiles.sort((a, b) => b.reputation_score - a.reputation_score);
+
+  if (countBadge) {
+    countBadge.innerText = `${profiles.length} user${profiles.length === 1 ? '' : 's'}`;
+  }
+
+  if (profiles.length === 0) {
+    deck.innerHTML = `
+      <div class="empty-feed-placeholder" style="text-align: center; padding: 1.5rem 0.5rem; font-size: 0.85rem; color: #a1a1aa;">
+        No users found matching query.
+      </div>
+    `;
+    return;
+  }
+
+  profiles.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'user-deck-item';
+    if (selectedUserId === p.id) {
+      item.classList.add('selected');
+    }
+    
+    const follows = loadFollows();
+    const isFollowed = follows.includes(p.id);
+    const followTag = isFollowed ? ' <span style="color: var(--color-primary); font-size: 0.72rem;">(Following)</span>' : '';
+
+    item.innerHTML = `
+      <div class="user-deck-info">
+        <div class="user-deck-name">@${p.username}${followTag}</div>
+        <div class="user-deck-rep">Reputation: ${p.reputation_score.toFixed(4)}</div>
+      </div>
+      <div class="user-deck-action">View &rarr;</div>
+    `;
+
+    item.addEventListener('click', () => {
+      selectUserInExplorer(p.id);
+    });
+
+    deck.appendChild(item);
+  });
+}
+
+window.selectUserInExplorer = function(userId) {
+  selectedUserId = userId;
+  renderUsersSearchList();
+  renderSelectedUserDetails(userId);
+};
+
+function renderSelectedUserDetails(userId) {
+  loadDb();
+  const detailCard = document.getElementById('selected-user-info-card');
+  const reviewList = document.getElementById('user-reviews-list');
+  const settingsRevealConsent = document.getElementById('chk-settings-reveal-low')?.checked || false;
+
+  if (!detailCard || !reviewList) return;
+
+  const profile = db.profiles.find(p => p.id === userId);
+  if (!profile) {
+    detailCard.innerHTML = `<div class="empty-feed-placeholder"><p>User not found.</p></div>`;
+    reviewList.innerHTML = '';
+    return;
+  }
+
+  let inviterName = 'None (Root Node)';
+  if (profile.invited_by) {
+    const inviter = db.profiles.find(p => p.id === profile.invited_by);
+    inviterName = inviter ? `@${inviter.username}` : 'Unknown Profile';
+  }
+
+  const follows = loadFollows();
+  const isFollowed = follows.includes(profile.id);
+  
+  let followButtonHtml = '';
+  if (currentUser && profile.id !== currentUser.id) {
+    if (isFollowed) {
+      followButtonHtml = `
+        <button onclick="toggleFollowUserFromExplorer('${profile.id}')" class="btn" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: #a1a1aa; width: auto; font-size: 0.85rem; padding: 0.45rem 1rem;">
+          Unfollow Reviewer
+        </button>
+      `;
+    } else {
+      followButtonHtml = `
+        <button onclick="toggleFollowUserFromExplorer('${profile.id}')" class="btn btn-primary" style="width: auto; font-size: 0.85rem; padding: 0.45rem 1rem;">
+          👤+ Follow Reviewer
+        </button>
+      `;
+    }
+  }
+
+  detailCard.innerHTML = `
+    <div class="user-profile-header" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem;">
+      <div>
+        <h2 style="font-family: var(--font-heading); font-size: 1.35rem; margin: 0 0 0.25rem 0;">@${profile.username}</h2>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="user-meta-badge" style="background: ${profile.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${profile.is_active ? '#10b981' : '#ef4444'}; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 600;">
+            ${profile.is_active ? 'Active Profile' : 'Suspended'}
+          </span>
+        </div>
+      </div>
+      <div>
+        ${followButtonHtml}
+      </div>
+    </div>
+
+    <div class="user-profile-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 0.5rem;">
+      <div class="user-meta-item">
+        <span class="user-meta-label" style="font-size: 0.72rem; color: var(--color-text-dim); text-transform: uppercase;">Reputation Score</span>
+        <span class="user-meta-value" style="font-size: 1.1rem; color: var(--color-primary); font-family: var(--font-mono); font-weight: 600;">${profile.reputation_score.toFixed(4)}</span>
+      </div>
+      <div class="user-meta-item">
+        <span class="user-meta-label" style="font-size: 0.72rem; color: var(--color-text-dim); text-transform: uppercase;">Inviter</span>
+        <span class="user-meta-value" style="font-size: 0.95rem; font-weight: 500;">${inviterName}</span>
+      </div>
+      <div class="user-meta-item">
+        <span class="user-meta-label" style="font-size: 0.72rem; color: var(--color-text-dim); text-transform: uppercase;">Demographic Cohort</span>
+        <span class="user-meta-value" style="font-size: 0.95rem; font-weight: 500;">${profile.demographic_group || 'N/A'}</span>
+      </div>
+    </div>
+  `;
+
+  reviewList.innerHTML = '';
+  const userReviews = db.reviews.filter(r => r.author_id === profile.id).map(review => {
+    const author = db.profiles.find(p => p.id === review.author_id);
+    const node = db.nodes.find(n => n.id === review.node_id);
+    const tags = getReviewTags(review.id);
+    const consensus = calculateReviewConsensus(review.id);
+    return { ...review, author, node, tags, consensus };
+  });
+
+  userReviews.sort((a, b) => b.created_at - a.created_at);
+
+  if (userReviews.length === 0) {
+    reviewList.innerHTML = `
+      <div class="empty-feed-placeholder" style="text-align: center; padding: 3rem 1rem;">
+        <p style="color: #a1a1aa; font-size: 0.9rem;">This reviewer has not published any immutable feedback yet.</p>
+      </div>
+    `;
+    return;
+  }
+
+  userReviews.forEach(r => {
+    renderReviewCard(r, reviewList, settingsRevealConsent);
+  });
+}
+
+window.toggleFollowUserFromExplorer = function(userId) {
+  let follows = loadFollows();
+  const idx = follows.indexOf(userId);
+  if (idx > -1) {
+    follows.splice(idx, 1);
+  } else {
+    follows.push(userId);
+  }
+  saveFollows(follows);
+  
+  renderUsersSearch();
+};
+
 // Global hook to clear feed filters or set tags
 window.setFeedTagFilter = function(tagId, tagName) {
   activeTagFilter = tagId;
@@ -1284,11 +1506,14 @@ function renderNodeDetail(node) {
   if (avgConsensus < 0.40) consensusBadgeColor = '#f43f5e';
 
   const isMod = currentUser && (currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001');
-  let deleteButtonHtml = '';
+  let modActionsButtonHtml = '';
   if (isMod && node.parent_id !== null) {
-    deleteButtonHtml = `
+    modActionsButtonHtml = `
       <button class="btn btn-danger btn-sm" onclick="deleteNodeFromDirectory(${node.id})" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 0.25rem; width: auto; cursor: pointer; margin-left: 0.5rem;">
         🗑️ Delete Space
+      </button>
+      <button class="btn btn-warning btn-sm" onclick="mergeNodeInDirectory(${node.id})" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: transparent; border: 1px solid var(--color-warning); color: var(--color-warning); border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 0.25rem; width: auto; cursor: pointer; margin-left: 0.5rem;">
+        🔀 Merge Space
       </button>
     `;
   }
@@ -1298,7 +1523,7 @@ function renderNodeDetail(node) {
       <div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <span class="badge count-badge" style="font-family:var(--font-mono); text-transform:uppercase;">${node.node_type}</span>
-          ${deleteButtonHtml}
+          ${modActionsButtonHtml}
         </div>
         <h2 style="margin-top:0.25rem;">${node.name}</h2>
       </div>
@@ -1629,6 +1854,8 @@ function initReviewSubmission() {
         const address = document.getElementById('portal-review-new-address').value.trim();
         const coords = document.getElementById('portal-review-new-coords').value.trim();
         const leafNodeType = document.getElementById('select-portal-leaf-type').value;
+        const aliasesInput = document.getElementById('portal-review-new-aliases') ? document.getElementById('portal-review-new-aliases').value.trim() : '';
+        const aliasesList = aliasesInput ? aliasesInput.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : [];
 
         if (!newPath) {
           alert("Error: Please provide a new location path name.");
@@ -1643,8 +1870,25 @@ function initReviewSubmission() {
         pathSegments.forEach((segment, idx) => {
           const slug = segment.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 50);
           
-          // Check if path already exists
-          let existing = db.nodes.find(n => n.parent_id === currentParent && n.slug === slug);
+          // Check if path already exists (exact slug, synonym alias, or fuzzy spelling match)
+          let existing = db.nodes.find(n => {
+            if (n.parent_id !== currentParent) return false;
+            // 1. Exact slug match
+            if (n.slug === slug) return true;
+            // 2. Exact name match (case-insensitive)
+            if (n.name.toLowerCase() === segment.toLowerCase()) return true;
+            // 3. Synonym / Alias match
+            if (n.aliases && Array.isArray(n.aliases)) {
+              const lowerAliases = n.aliases.map(a => a.toLowerCase().trim());
+              if (lowerAliases.includes(segment.toLowerCase()) || lowerAliases.includes(slug)) return true;
+            }
+            // 4. Fuzzy Levenshtein match for sibling categories/merchants (distance <= 1 for spelling errors)
+            if (getEditDistance(n.slug, slug) <= 1) {
+              console.log(`Fuzzy matched "${segment}" to existing node "${n.name}"`);
+              return true;
+            }
+            return false;
+          });
           
           if (existing) {
             currentParent = existing.id;
@@ -1663,7 +1907,8 @@ function initReviewSubmission() {
               name: segment,
               slug: slug,
               node_type: isLeaf ? leafNodeType : 'category',
-              path: nodePath
+              path: nodePath,
+              aliases: isLeaf ? aliasesList : []
             };
 
             // If leaf, add verified address
@@ -1812,6 +2057,9 @@ function initReviewSubmission() {
           if (document.getElementById('portal-review-new-path')) {
             document.getElementById('portal-review-new-path').value = '';
           }
+          if (document.getElementById('portal-review-new-aliases')) {
+            document.getElementById('portal-review-new-aliases').value = '';
+          }
           if (document.getElementById('portal-review-new-address')) {
             document.getElementById('portal-review-new-address').value = '';
           }
@@ -1932,6 +2180,62 @@ window.deleteNodeFromDirectory = async function(nodeId) {
   }
 };
 
+window.mergeNodeInDirectory = async function(nodeId) {
+  const targetIdStr = prompt("Enter the ID of the canonical target category/merchant to merge this space into:");
+  if (targetIdStr === null) return;
+  const targetId = parseInt(targetIdStr.trim());
+  if (isNaN(targetId)) {
+    alert("Error: Target ID must be a number.");
+    return;
+  }
+
+  if (nodeId === targetId) {
+    alert("Error: Cannot merge a space into itself.");
+    return;
+  }
+
+  const userKey = sessionStorage.getItem('current_user_key');
+  if (!userKey) {
+    alert("Error: You must be logged in to perform this operation.");
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to merge space #${nodeId} into space #${targetId}? All child spaces and reviews will be moved.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.inviteonlyreviews.com/api/admin/merge-nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        authKey: userKey,
+        sourceNodeId: nodeId,
+        targetNodeId: targetId
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to merge directory spaces.');
+    }
+
+    alert("Directory spaces successfully merged on the ledger!");
+
+    // Clear local storage / trigger complete sync to pull down updated paths and relationships
+    localStorage.removeItem('review_network_db');
+    loadDb();
+    await syncLiveReviews();
+    
+    // Reset path back to root since structure changed
+    currentDirectoryPath = [];
+    renderDirectoryExplorer();
+
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+};
+
 // ----------------------------------------------------
 // 10. Initialization & Listeners Setup
 // ----------------------------------------------------
@@ -1954,6 +2258,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchInput) {
     searchInput.addEventListener('input', () => {
       renderFeedReviews();
+    });
+  }
+
+  // Users Search input real-time query
+  const usersSearchInput = document.getElementById('users-search-input');
+  if (usersSearchInput) {
+    usersSearchInput.addEventListener('input', () => {
+      renderUsersSearchList();
     });
   }
 
@@ -1990,6 +2302,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderFeedReviews();
       } else if (activeTab === 'browse-view') {
         renderDirectoryExplorer();
+      } else if (activeTab === 'users-view') {
+        renderUsersSearch();
       }
     }
   });

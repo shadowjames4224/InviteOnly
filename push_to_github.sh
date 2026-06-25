@@ -53,8 +53,12 @@ if [ -z "$commit_msg" ]; then
 fi
 
 # Commit changes
-echo "💾 Committing changes..."
-git commit -m "$commit_msg"
+if [ -n "$(git status --porcelain)" ]; then
+    echo "💾 Committing changes..."
+    git commit -m "$commit_msg"
+else
+    echo "ℹ️ No new changes to commit, proceeding to push."
+fi
 
 # Determine current branch
 current_branch=$(git branch --show-current)

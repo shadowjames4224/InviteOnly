@@ -4,12 +4,12 @@ compatibility_date = "2024-03-01"
 
 # Environment Variables
 [vars]
-SUPABASE_URL = "https://your-supabase-project.supabase.co"
+SUPABASE_URL = "https://kvngomppvgnadiwhgglc.supabase.co"
 R2_BUCKET_URL = "https://pub-your-bucket-domain.r2.dev"
 
 # R2 Bucket Bindings
 # Binds the Cloudflare R2 bucket to the worker context
-[[r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "decentralized-reviews-media"
-preview_bucket_name = "decentralized-reviews-media-preview"
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "decentralized-reviews-media"
+# preview_bucket_name = "decentralized-reviews-media-preview"

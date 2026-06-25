@@ -31,6 +31,9 @@
         <button class="nav-tab-btn" data-tab="following-view" id="nav-btn-following">
           <span class="btn-icon">👥</span> Following Feed
         </button>
+        <button class="nav-tab-btn" data-tab="users-view" id="nav-btn-users">
+          <span class="btn-icon">🔍</span> Search Users
+        </button>
         <button class="nav-tab-btn" data-tab="browse-view">
           <span class="btn-icon">📁</span> Browse Directory
         </button>
@@ -106,6 +109,47 @@
       <!-- Following Feed Container -->
       <div class="forum-feed-list" id="portal-following-feed-list">
         <!-- Render following reviews dynamically -->
+      </div>
+    </section>
+ 
+    <!-- Tab 1c: Search Users View -->
+    <section class="portal-tab-content" id="users-view">
+      <div class="users-explorer-grid">
+        
+        <!-- User Search Sidebar -->
+        <div class="card users-search-card">
+          <div class="card-header">
+            <h2>Search Reviewers</h2>
+            <span class="badge count-badge" id="users-count-badge">0 users</span>
+          </div>
+          <p class="card-desc">Find other reviewers in the network, check their reputation, and follow them.</p>
+          
+          <div class="search-bar-row" style="margin-bottom: 1rem;">
+            <input type="text" id="users-search-input" class="input-field" placeholder="Search by username..." style="width: 100%;">
+          </div>
+
+          <!-- Matching users list -->
+          <div class="users-list-deck" id="users-list-deck">
+            <!-- Render matching users dynamically -->
+          </div>
+        </div>
+
+        <!-- Selected User Details & Reviews -->
+        <div class="users-details-area">
+          <div class="card selected-user-info-card" id="selected-user-info-card">
+            <div class="empty-feed-placeholder" style="text-align: center; padding: 3rem 1rem;">
+              <p style="color: #a1a1aa; font-size: 0.95rem;">Select a user to view details</p>
+            </div>
+          </div>
+
+          <div class="selected-user-reviews-container">
+            <h3 class="section-title">Reviewer Feedback History</h3>
+            <div class="forum-feed-list" id="user-reviews-list">
+              <!-- Render selected user reviews dynamically -->
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -226,6 +270,11 @@
               <div class="form-group" style="margin-top: 0.75rem;">
                 <label for="portal-review-new-path">New Location Path (use "/" to nest paths, e.g. "Ramen / Tatsuya")</label>
                 <input type="text" id="portal-review-new-path" class="input-field" placeholder="e.g. Coffee / Classic Coffee North">
+              </div>
+
+              <div class="form-group" style="margin-top: 0.75rem;">
+                <label for="portal-review-new-aliases">Synonyms / Aliases (comma-separated, e.g. "US, USA" for United States)</label>
+                <input type="text" id="portal-review-new-aliases" class="input-field" placeholder="e.g. US, USA, United States">
               </div>
 
               <div class="form-row-split" style="margin-top: 0.75rem;">
