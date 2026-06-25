@@ -6,6 +6,7 @@ let currentUser = null;
 let activeTagFilter = null;
 let currentDirectoryPath = []; // Array of node objects representing breadcrumb trail
 let selectedUserId = null;
+let uploadedFiles = [];
 
 // Levenshtein Distance for fuzzy matching spelling variations
 function getEditDistance(a, b) {
@@ -1712,57 +1713,71 @@ function initDropdownTypeaheadFilter() {
   setupTypeahead('portal-parent-category-search', 'select-portal-parent-category');
 }
 
-// Google Maps verified address autocomplete simulation
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+// OpenStreetMap Nominatim verified address autocomplete
 function initAddressAutocomplete() {
   const addressInput = document.getElementById('portal-review-new-address');
   const coordsInput = document.getElementById('portal-review-new-coords');
   const autocompleteMenu = document.getElementById('portal-address-autocomplete');
   if (!addressInput || !autocompleteMenu) return;
 
-  const presets = [
-    { name: "200 Congress Ave, Austin, TX", coords: "30.2672° N, 97.7431° W" },
-    { name: "Lady Bird Lake Trail, Austin, TX", coords: "30.2505° N, 97.7505° W" },
-    { name: "402 Market St, San Francisco, CA", coords: "37.7915° N, 122.3995° W" },
-    { name: "705 Morrison St, Portland, OR", coords: "45.5190° N, 122.6792° W" },
-    { name: "Foundry Fab 12, Phoenix, AZ", coords: "33.4484° N, 112.0740° W" },
-    { name: "Silver Creek Road, Picabo, ID", coords: "43.3275° N, 114.1685° W" }
-  ];
-
-  addressInput.addEventListener('input', () => {
+  const fetchSuggestions = async () => {
     autocompleteMenu.innerHTML = '';
-    const val = addressInput.value.toLowerCase().trim();
+    const val = addressInput.value.trim();
     if (!val) {
       autocompleteMenu.classList.add('hidden');
       return;
     }
 
-    const matches = presets.filter(p => p.name.toLowerCase().includes(val));
-    
-    // Dynamic recommendation if no preset matches
-    if (matches.length === 0) {
-      matches.push({
-        name: `${addressInput.value.trim()}, USA`,
-        coords: `${(30 + (val.length % 15)).toFixed(4)}° N, ${(90 + (val.length % 30)).toFixed(4)}° W`
-      });
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const data = await response.json();
+
+      autocompleteMenu.innerHTML = '';
+      if (data.length === 0) {
+        const div = document.createElement('div');
+        div.style.padding = '0.5rem';
+        div.style.fontSize = '0.8rem';
+        div.style.color = '#71717a';
+        div.innerText = 'No matching addresses found';
+        autocompleteMenu.appendChild(div);
+      } else {
+        data.forEach(item => {
+          const lat = parseFloat(item.lat);
+          const lon = parseFloat(item.lon);
+          const formattedCoords = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`;
+
+          const div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.innerHTML = `
+            <span style="font-size:0.9rem; font-weight:500;">${item.display_name}</span>
+            <span style="font-size:0.7rem; color:#71717a; font-family:var(--font-mono);">${formattedCoords}</span>
+          `;
+          div.addEventListener('click', () => {
+            addressInput.value = item.display_name;
+            if (coordsInput) coordsInput.value = formattedCoords;
+            autocompleteMenu.classList.add('hidden');
+          });
+          autocompleteMenu.appendChild(div);
+        });
+      }
+      autocompleteMenu.classList.remove('hidden');
+    } catch (err) {
+      console.error("OSM Geocoding fetch failed:", err);
     }
+  };
 
-    matches.forEach(m => {
-      const div = document.createElement('div');
-      div.className = 'autocomplete-item';
-      div.innerHTML = `
-        <span style="font-size:0.9rem; font-weight:500;">${m.name}</span>
-        <span style="font-size:0.7rem; color:#71717a; font-family:var(--font-mono);">${m.coords}</span>
-      `;
-      div.addEventListener('click', () => {
-        addressInput.value = m.name;
-        if (coordsInput) coordsInput.value = m.coords;
-        autocompleteMenu.classList.add('hidden');
-      });
-      autocompleteMenu.appendChild(div);
-    });
+  const debouncedFetch = debounce(fetchSuggestions, 300);
 
-    autocompleteMenu.classList.remove('hidden');
-  });
+  addressInput.addEventListener('input', debouncedFetch);
 
   // Hide autocomplete menu when clicking outside
   document.addEventListener('click', (e) => {
@@ -1770,6 +1785,136 @@ function initAddressAutocomplete() {
       autocompleteMenu.classList.add('hidden');
     }
   });
+}
+
+// Coordinate parsing helper
+function parseCoords(coordStr) {
+  if (!coordStr) return null;
+  const decimalRegex = /^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/;
+  const matchDecimal = coordStr.match(decimalRegex);
+  if (matchDecimal) {
+    return {
+      lat: parseFloat(matchDecimal[1]),
+      lon: parseFloat(matchDecimal[2])
+    };
+  }
+
+  const degRegex = /(-?\d+\.\d+)\s*°\s*([NESWnesw])\s*,\s*(-?\d+\.\d+)\s*°\s*([NESWnesw])/;
+  const matchDeg = coordStr.match(degRegex);
+  if (matchDeg) {
+    let lat = parseFloat(matchDeg[1]);
+    const latDir = matchDeg[2].toUpperCase();
+    let lon = parseFloat(matchDeg[3]);
+    const lonDir = matchDeg[4].toUpperCase();
+
+    if (latDir === 'S') lat = -lat;
+    if (lonDir === 'W') lon = -lon;
+    return { lat, lon };
+  }
+  return null;
+}
+
+// Haversine distance formula (in meters)
+function getHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Extract GPS coords from EXIF using exifr library
+async function extractGpsFromImages(files) {
+  if (typeof exifr === 'undefined') {
+    console.error("exifr library not loaded");
+    return null;
+  }
+  for (let file of files) {
+    try {
+      const gps = await exifr.gps(file);
+      if (gps && typeof gps.latitude === 'number' && typeof gps.longitude === 'number') {
+        return gps;
+      }
+    } catch (err) {
+      console.warn("EXIF GPS parsing failed for file:", file.name, err);
+    }
+  }
+  return null;
+}
+
+// Perform client-side WASM OCR using Tesseract.js on images
+async function performOcrOnImages(files, logProgressCb) {
+  if (typeof Tesseract === 'undefined') {
+    console.error("Tesseract.js library not loaded");
+    return "";
+  }
+  let combinedText = "";
+  for (let file of files) {
+    try {
+      let lastPercent = -20;
+      const ret = await Tesseract.recognize(file, 'eng', {
+        logger: m => {
+          if (m.status === 'recognizing text' && logProgressCb) {
+            const percent = Math.floor(m.progress * 10) * 10;
+            if (percent >= lastPercent + 20) {
+              logProgressCb(percent);
+              lastPercent = percent;
+            }
+          }
+        }
+      });
+      combinedText += " " + ret.data.text;
+    } catch (err) {
+      console.error("Tesseract OCR failed for file:", file.name, err);
+    }
+  }
+  return combinedText;
+}
+
+// Fuzzy match keyword/aliases in OCR text
+function fuzzyMatchText(ocrText, targetName, aliases = []) {
+  const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  
+  const normOcr = normalize(ocrText);
+  const normTarget = normalize(targetName);
+  const normAliases = aliases.map(a => normalize(a)).filter(Boolean);
+  
+  if (!normTarget) return false;
+  if (normOcr.includes(normTarget)) return true;
+  for (let alias of normAliases) {
+    if (normOcr.includes(alias)) return true;
+  }
+  
+  // Sliding window Levenshtein check
+  const ocrWords = normOcr.split(' ');
+  const targetWords = normTarget.split(' ');
+  const windowSize = targetWords.length;
+  
+  const threshold = Math.max(1, Math.floor(normTarget.length * 0.25));
+  
+  for (let i = 0; i <= ocrWords.length - windowSize; i++) {
+    const windowPhrase = ocrWords.slice(i, i + windowSize).join(' ');
+    if (getEditDistance(windowPhrase, normTarget) <= threshold) {
+      return true;
+    }
+  }
+  
+  for (let alias of normAliases) {
+    const aliasWords = alias.split(' ');
+    const aWindowSize = aliasWords.length;
+    const aThreshold = Math.max(1, Math.floor(alias.length * 0.25));
+    for (let i = 0; i <= ocrWords.length - aWindowSize; i++) {
+      const windowPhrase = ocrWords.slice(i, i + aWindowSize).join(' ');
+      if (getEditDistance(windowPhrase, alias) <= aThreshold) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // ----------------------------------------------------
@@ -1784,8 +1929,9 @@ function initReviewSubmission() {
 
   const gpsCheckbox = document.getElementById('chk-portal-gps');
   const ocrCheckbox = document.getElementById('chk-portal-ocr');
-  const gpsPresetGroup = document.getElementById('portal-gps-preset-group');
-  const ocrPresetGroup = document.getElementById('portal-ocr-preset-group');
+  const mediaGroup = document.getElementById('poe-media-group');
+  const uploadInput = document.getElementById('poe-image-upload');
+  const previewContainer = document.getElementById('poe-preview-container');
   const poeLogs = document.getElementById('portal-poe-logs');
 
   if (!existingRadio || !newRadio) return;
@@ -1804,16 +1950,51 @@ function initReviewSubmission() {
   existingRadio.addEventListener('change', () => toggleViewMode('existing'));
   newRadio.addEventListener('change', () => toggleViewMode('new'));
 
-  // Toggle PoE parameter presets
-  gpsCheckbox.addEventListener('change', (e) => {
-    if (e.target.checked) gpsPresetGroup.classList.remove('hidden');
-    else gpsPresetGroup.classList.add('hidden');
-  });
+  // Toggle Media Group visibility
+  const updatePoeMediaVisibility = () => {
+    if (gpsCheckbox.checked || ocrCheckbox.checked) {
+      mediaGroup.classList.remove('hidden');
+    } else {
+      mediaGroup.classList.add('hidden');
+      if (uploadInput) uploadInput.value = '';
+      if (previewContainer) previewContainer.innerHTML = '';
+      uploadedFiles = [];
+    }
+  };
 
-  ocrCheckbox.addEventListener('change', (e) => {
-    if (e.target.checked) ocrPresetGroup.classList.remove('hidden');
-    else ocrPresetGroup.classList.add('hidden');
-  });
+  gpsCheckbox.addEventListener('change', updatePoeMediaVisibility);
+  ocrCheckbox.addEventListener('change', updatePoeMediaVisibility);
+
+  // File Upload Preview
+  if (uploadInput) {
+    uploadInput.addEventListener('change', (e) => {
+      previewContainer.innerHTML = '';
+      uploadedFiles = Array.from(e.target.files);
+      
+      uploadedFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const wrapper = document.createElement('div');
+          wrapper.style.position = 'relative';
+          wrapper.style.width = '60px';
+          wrapper.style.height = '60px';
+          wrapper.style.borderRadius = 'var(--radius-sm)';
+          wrapper.style.border = '1px solid var(--border-color)';
+          wrapper.style.overflow = 'hidden';
+          
+          const img = document.createElement('img');
+          img.src = event.target.result;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          
+          wrapper.appendChild(img);
+          previewContainer.appendChild(wrapper);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+  }
 
   // Submission handler
   const btnSubmit = document.getElementById('btn-portal-submit-review');
@@ -1887,9 +2068,13 @@ function initReviewSubmission() {
         });
       }
 
-      // 2. Perform PoE Logs simulation terminal
+      // 2. Perform PoE Logs pipeline
       poeLogs.innerHTML = '';
-      poeLogs.classList.remove('hidden');
+      if (attachGps || attachOcr) {
+        poeLogs.classList.remove('hidden');
+      } else {
+        poeLogs.classList.add('hidden');
+      }
 
       const log = (msg, style = '') => {
         poeLogs.innerHTML += `<div class="log-line ${style}">> ${msg}</div>`;
@@ -1897,59 +2082,108 @@ function initReviewSubmission() {
       };
 
       let pipeline = [];
-      let isVerified = false;
-      let method = null;
+      let gpsSuccess = false;
+      let ocrSuccess = false;
 
-      if (attachGps || attachOcr) {
-        log("PoE Pipeline Triggered: Initiating verification checks...", "command");
-        
-        if (attachGps) {
-          pipeline.push((cb) => {
-            log("Edge-Worker: Scrubbing metadata APP1 headers...", "info");
-            setTimeout(() => {
-              const preset = document.getElementById('select-portal-gps-preset').value;
-              if (preset === 'correct') {
-                log("Edge-Worker: Found EXIF GPS. Proximity matches target. (Distance 38.4m)", "success");
-                log("Edge-Worker: Scrubbed GPS tracking tags from JPEG binary stream.", "warning");
-                isVerified = true;
-                method = 'exif_gps';
-              } else if (preset === 'wrong') {
-                log("Edge-Worker: GPS Mismatch. Proximity check FAILED.", "danger");
-                log("Edge-Worker: Scrubbed GPS tags anyway for user privacy.", "warning");
+      if (attachGps) {
+        pipeline.push(async (cb) => {
+          log("Edge-Worker: Analyzing image EXIF metadata...", "info");
+          try {
+            const gpsCoords = await extractGpsFromImages(uploadedFiles);
+            if (gpsCoords) {
+              log(`Edge-Worker: Found EXIF GPS coordinates: ${gpsCoords.latitude.toFixed(6)}, ${gpsCoords.longitude.toFixed(6)}`, "info");
+              
+              let targetCoordsStr = "";
+              if (isNewMode) {
+                targetCoordsStr = document.getElementById('portal-review-new-coords').value.trim();
               } else {
-                log("Edge-Worker: No EXIF GPS tags found. Metadata check FAILED.", "danger");
+                const node = db.nodes.find(n => n.id === targetNodeId);
+                targetCoordsStr = node ? (node.coordinates || "") : "";
               }
-              cb();
-            }, 600);
-          });
-        }
+              
+              const targetCoords = parseCoords(targetCoordsStr);
+              if (targetCoords) {
+                const distance = getHaversineDistance(gpsCoords.latitude, gpsCoords.longitude, targetCoords.lat, targetCoords.lon);
+                log(`Edge-Worker: Proximity check - Distance to target is ${distance.toFixed(1)} meters.`, "info");
+                if (distance <= 100) {
+                  log(`Edge-Worker: Found EXIF GPS. Proximity matches target. (Distance ${distance.toFixed(1)}m)`, "success");
+                  gpsSuccess = true;
+                } else {
+                  log(`Edge-Worker: GPS Mismatch. Proximity check FAILED (Distance ${distance.toFixed(1)}m > 100m).`, "danger");
+                }
+              } else {
+                log("Edge-Worker: Target location lacks valid coordinates. Proximity check FAILED.", "danger");
+              }
+            } else {
+              log("Edge-Worker: No EXIF GPS tags found in uploaded images. Proximity check FAILED.", "danger");
+            }
+          } catch (err) {
+            log(`Edge-Worker: EXIF parsing error: ${err.message}`, "danger");
+          }
+          cb();
+        });
+      }
 
-        if (attachOcr) {
-          pipeline.push((cb) => {
-            log("Serverless Worker: Loading WASM Tesseract OCR engine...", "info");
-            setTimeout(() => {
-              const preset = document.getElementById('select-portal-ocr-preset').value;
-              if (preset === 'correct') {
-                log("Serverless Worker: Keyword Match parsed successfully on invoice.", "success");
-                isVerified = true;
-                method = 'wasm_ocr';
+      if (attachOcr) {
+        pipeline.push(async (cb) => {
+          log("Serverless Worker: Loading WASM Tesseract OCR engine...", "info");
+          try {
+            if (uploadedFiles.length === 0) {
+              log("Serverless Worker: No files uploaded for OCR analysis. Transaction verification FAILED.", "danger");
+            } else {
+              log("Serverless Worker: Analyzing text from uploaded receipt...", "info");
+              const ocrText = await performOcrOnImages(uploadedFiles, (percent) => {
+                log(`Serverless Worker: OCR Parsing ${percent}%...`, "info");
+              });
+              log(`Serverless Worker: OCR Text extracted successfully. Performing keyword matches...`, "info");
+              
+              let targetName = "";
+              let targetAliases = [];
+              if (isNewMode) {
+                const pathText = document.getElementById('portal-review-new-path').value.trim();
+                const pathSegments = pathText.split('/').map(s => s.trim()).filter(Boolean);
+                targetName = pathSegments[pathSegments.length - 1] || "";
+                const aliasesInput = document.getElementById('portal-review-new-aliases') ? document.getElementById('portal-review-new-aliases').value.trim() : '';
+                targetAliases = aliasesInput ? aliasesInput.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : [];
               } else {
-                log("Serverless Worker: OCR Parsing failed. No merchant keyword match found.", "danger");
+                const node = db.nodes.find(n => n.id === targetNodeId);
+                targetName = node ? node.name : "";
+                targetAliases = node ? (node.aliases || []) : [];
               }
-              cb();
-            }, 600);
-          });
-        }
+              
+              const isOcrMatch = fuzzyMatchText(ocrText, targetName, targetAliases);
+              if (isOcrMatch) {
+                log(`Serverless Worker: Keyword Match parsed successfully on invoice for "${targetName}".`, "success");
+                ocrSuccess = true;
+              } else {
+                log(`Serverless Worker: OCR Parsing FAILED. No matching keyword/alias found for "${targetName}".`, "danger");
+              }
+            }
+          } catch (err) {
+            log(`Serverless Worker: OCR parsing error: ${err.message}`, "danger");
+          }
+          cb();
+        });
       }
 
       const commitReview = () => {
         log("PoE Pipeline complete. Appending review...", "command");
         
+        let isVerified = false;
+        let method = null;
+        if (attachGps && gpsSuccess) {
+          isVerified = true;
+          method = 'exif_gps';
+        }
+        if (attachOcr && ocrSuccess) {
+          isVerified = true;
+          method = method ? `${method},wasm_ocr` : 'wasm_ocr';
+        }
+
         const newReviewId = '00000000-0000-0000-0000-000000' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
         
         const newReview = {
           id: newReviewId,
-          // targetNodeId is calculated on the server if newNodesList is present
           node_id: isNewMode ? null : targetNodeId,
           author_id: currentUser.id,
           raw_content: content,
@@ -1965,7 +2199,6 @@ function initReviewSubmission() {
         if (tagsInputVal) {
           const rawTags = tagsInputVal.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
           rawTags.forEach(tagStr => {
-            // Find or create tag
             let tag = db.tags.find(t => t.name === tagStr);
             let tagId;
             if (!tag) {
@@ -1975,16 +2208,14 @@ function initReviewSubmission() {
               tagId = tag.id;
             }
 
-            // Link tag to review
             db.review_tags.push({ review_id: newReviewId, tag_id: tagId });
             tagsList.push(tagStr);
           });
         }
 
         saveDbState();
-        runLineageReputationDecay(); // Recalculate reputation
+        runLineageReputationDecay();
 
-        // Sync review creation to Supabase API
         fetch('https://api.inviteonlyreviews.com/api/reviews', {
           method: 'POST',
           headers: {
@@ -2008,13 +2239,14 @@ function initReviewSubmission() {
         });
 
         setTimeout(() => {
-          // Clear form fields
           document.getElementById('portal-review-text').value = '';
           document.getElementById('portal-review-tags').value = '';
           gpsCheckbox.checked = false;
           ocrCheckbox.checked = false;
-          gpsPresetGroup.classList.add('hidden');
-          ocrPresetGroup.classList.add('hidden');
+          mediaGroup.classList.add('hidden');
+          if (uploadInput) uploadInput.value = '';
+          if (previewContainer) previewContainer.innerHTML = '';
+          uploadedFiles = [];
           poeLogs.classList.add('hidden');
           
           if (document.getElementById('portal-review-new-path')) {
@@ -2035,7 +2267,6 @@ function initReviewSubmission() {
 
           alert("Success! Your review has been added immutably to the ledger.");
           
-          // Switch to Feed Tab
           const feedTabBtn = document.querySelector('[data-tab="feed-view"]');
           if (feedTabBtn) feedTabBtn.click();
         }, 400);

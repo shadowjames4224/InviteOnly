@@ -332,23 +332,11 @@
                 </div>
               </div>
 
-              <!-- GPS Presets -->
-              <div class="form-group hidden" id="portal-gps-preset-group" style="margin-left: 1.5rem; margin-top: 0.5rem;">
-                <label for="select-portal-gps-preset">Mock Image GPS Metadata:</label>
-                <select id="select-portal-gps-preset" class="select-field">
-                  <option value="correct">Match: Correct coordinates (within 50m of merchant)</option>
-                  <option value="wrong">Mismatch: Wrong coordinates (8,250km away)</option>
-                  <option value="none">No GPS: Missing spatial coordinates in metadata</option>
-                </select>
-              </div>
-
-              <!-- OCR Presets -->
-              <div class="form-group hidden" id="portal-ocr-preset-group" style="margin-left: 1.5rem; margin-top: 0.5rem;">
-                <label for="select-portal-ocr-preset">Mock Receipt Upload Text:</label>
-                <select id="select-portal-ocr-preset" class="select-field">
-                  <option value="correct">Match: Receipt contains merchant name</option>
-                  <option value="wrong">Mismatch: Receipt contains different merchant name</option>
-                </select>
+              <!-- Media Upload and Preview UI -->
+              <div class="form-group hidden" id="poe-media-group" style="margin-top: 0.75rem;">
+                <label for="poe-image-upload" style="font-size: 0.85rem; color: #a1a1aa;">Upload Photos (for GPS EXIF) / Receipts (for OCR):</label>
+                <input type="file" accept="image/*" id="poe-image-upload" class="input-field" multiple style="background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); cursor: pointer; padding: 1rem; text-align: center; margin-top: 0.25rem;">
+                <div id="poe-preview-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;"></div>
               </div>
             </div>
 
@@ -419,6 +407,10 @@
 
   <!-- Interactive Network Chat Assistant -->
   <script src="assistant.js"></script>
+
+  <!-- Client-side EXIF and OCR libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/exifr@2.1.2/dist/lite.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
 
   <!-- Portal Application scripts -->
   <script src="index.js"></script>

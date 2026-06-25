@@ -81,6 +81,7 @@ function showAccessKeyModal(title, message, key) {
 
 let db;
 let currentUser = null;
+let profileUploadedFiles = [];
 
 function formatRep(rep) {
   const val = parseFloat(rep);
@@ -1660,8 +1661,8 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
   }
 
   const content = document.getElementById('new-review-text').value.trim();
-  const gpsChecked = false;
-  const ocrChecked = false;
+  const gpsChecked = document.getElementById('chk-profile-gps')?.checked || false;
+  const ocrChecked = document.getElementById('chk-profile-ocr')?.checked || false;
   const sigChecked = false;
 
   if (content.length < 10 || content.length > 10000) {
@@ -1684,24 +1685,132 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
     if (ge.id === 'ge_macchiato') {
       param1 = parseFloat(document.getElementById('profile-param-espresso')?.value || 20.0);
       param2 = parseFloat(document.getElementById('profile-param-layering')?.value || 1.0);
-      method = ocrChecked ? 'wasm_ocr' : (gpsChecked ? 'exif_gps' : null);
-      gpsDopVal = gpsChecked ? 1.2 : null;
     } else if (ge.id === 'ge_gpu_x') {
       param1 = parseFloat(document.getElementById('profile-param-thermal')?.value || 72.0);
       param2 = parseFloat(document.getElementById('profile-param-clock')?.value || 2.50);
       param3 = parseFloat(document.getElementById('profile-param-voltage')?.value || 1.15);
-      method = sigChecked ? 'secure_enclave' : null;
     } else if (ge.id === 'ge_fishing_pool') {
       param1 = parseFloat(document.getElementById('profile-param-flow')?.value || 30.0);
       param2 = parseFloat(document.getElementById('profile-param-temp')?.value || 14.0);
-      method = gpsChecked ? 'exif_gps' : null;
-      gpsDopVal = gpsChecked ? 1.1 : null;
     }
   }
 
-  let hasValidPoe = false;
+  // Telemetry Console Logs
+  const poeLogs = document.getElementById('profile-poe-logs');
+  if (poeLogs) {
+    poeLogs.innerHTML = '';
+    if (gpsChecked || ocrChecked) {
+      poeLogs.classList.remove('hidden');
+    } else {
+      poeLogs.classList.add('hidden');
+    }
+  }
+
+  const log = (msg, style = '') => {
+    if (poeLogs) {
+      poeLogs.innerHTML += `<div class="log-line ${style}">> ${msg}</div>`;
+      poeLogs.scrollTop = poeLogs.scrollHeight;
+    }
+  };
+
+  let pipeline = [];
+  let gpsSuccess = false;
+  let ocrSuccess = false;
+
+  if (gpsChecked) {
+    pipeline.push(async (cb) => {
+      log("Edge-Worker: Analyzing image EXIF metadata...", "info");
+      try {
+        const gpsCoords = await extractGpsFromImages(profileUploadedFiles);
+        if (gpsCoords) {
+          log(`Edge-Worker: Found EXIF GPS coordinates: ${gpsCoords.latitude.toFixed(6)}, ${gpsCoords.longitude.toFixed(6)}`, "info");
+          
+          let targetCoordsStr = "";
+          if (mode === 'new') {
+            targetCoordsStr = document.getElementById('review-new-coords').value.trim();
+          } else {
+            const node = db.nodes.find(n => n.id === nodeId);
+            targetCoordsStr = node ? (node.coordinates || "") : "";
+          }
+          
+          const targetCoords = parseCoords(targetCoordsStr);
+          if (targetCoords) {
+            const distance = getHaversineDistance(gpsCoords.latitude, gpsCoords.longitude, targetCoords.lat, targetCoords.lon);
+            log(`Edge-Worker: Proximity check - Distance to target is ${distance.toFixed(1)} meters.`, "info");
+            if (distance <= 100) {
+              log(`Edge-Worker: Found EXIF GPS. Proximity matches target. (Distance ${distance.toFixed(1)}m)`, "success");
+              gpsSuccess = true;
+            } else {
+              log(`Edge-Worker: GPS Mismatch. Proximity check FAILED (Distance ${distance.toFixed(1)}m > 100m).`, "danger");
+            }
+          } else {
+            log("Edge-Worker: Target location lacks valid coordinates. Proximity check FAILED.", "danger");
+          }
+        } else {
+          log("Edge-Worker: No EXIF GPS tags found in uploaded images. Proximity check FAILED.", "danger");
+        }
+      } catch (err) {
+        log(`Edge-Worker: EXIF parsing error: ${err.message}`, "danger");
+      }
+      cb();
+    });
+  }
+
+  if (ocrChecked) {
+    pipeline.push(async (cb) => {
+      log("Serverless Worker: Loading WASM Tesseract OCR engine...", "info");
+      try {
+        if (profileUploadedFiles.length === 0) {
+          log("Serverless Worker: No files uploaded for OCR analysis. Transaction verification FAILED.", "danger");
+        } else {
+          log("Serverless Worker: Analyzing text from uploaded receipt...", "info");
+          const ocrText = await performOcrOnImages(profileUploadedFiles, (percent) => {
+            log(`Serverless Worker: OCR Parsing ${percent}%...`, "info");
+          });
+          log(`Serverless Worker: OCR Text extracted successfully. Performing keyword matches...`, "info");
+          
+          let targetName = "";
+          let targetAliases = [];
+          if (mode === 'new') {
+            const pathText = document.getElementById('review-new-path').value.trim();
+            const pathSegments = pathText.split('/').map(s => s.trim()).filter(Boolean);
+            targetName = pathSegments[pathSegments.length - 1] || "";
+            targetAliases = [];
+          } else {
+            const node = db.nodes.find(n => n.id === nodeId);
+            targetName = node ? node.name : "";
+            targetAliases = node ? (node.aliases || []) : [];
+          }
+          
+          const isOcrMatch = fuzzyMatchText(ocrText, targetName, targetAliases);
+          if (isOcrMatch) {
+            log(`Serverless Worker: Keyword Match parsed successfully on invoice for "${targetName}".`, "success");
+            ocrSuccess = true;
+          } else {
+            log(`Serverless Worker: OCR Parsing FAILED. No matching keyword/alias found for "${targetName}".`, "danger");
+          }
+        }
+      } catch (err) {
+        log(`Serverless Worker: OCR parsing error: ${err.message}`, "danger");
+      }
+      cb();
+    });
+  }
 
   const runPostReviewTransaction = () => {
+    log("PoE Pipeline complete. Appending review...", "command");
+    
+    let hasValidPoe = false;
+    if (gpsChecked && gpsSuccess) {
+      hasValidPoe = true;
+      method = 'exif_gps';
+      gpsDopVal = 1.0;
+    }
+    if (ocrChecked && ocrSuccess) {
+      hasValidPoe = true;
+      method = method ? `${method},wasm_ocr` : 'wasm_ocr';
+    }
+
     const newId = '00000000-0000-0000-0000-000000' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
     
     const newReview = {
@@ -1775,6 +1884,23 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
     const newCoordsEl = document.getElementById('review-new-coords');
     if (newCoordsEl) newCoordsEl.value = '';
 
+    const gpsCheckboxEl = document.getElementById('chk-profile-gps');
+    const ocrCheckboxEl = document.getElementById('chk-profile-ocr');
+    const mediaGroupEl = document.getElementById('poe-profile-media-group');
+    const uploadInputEl = document.getElementById('poe-profile-image-upload');
+    const previewContainerEl = document.getElementById('poe-profile-preview-container');
+    const poeLogsEl = document.getElementById('profile-poe-logs');
+
+    if (gpsCheckboxEl) gpsCheckboxEl.checked = false;
+    if (ocrCheckboxEl) ocrCheckboxEl.checked = false;
+    if (mediaGroupEl) mediaGroupEl.classList.add('hidden');
+    if (uploadInputEl) uploadInputEl.value = '';
+    if (previewContainerEl) previewContainerEl.innerHTML = '';
+    profileUploadedFiles = [];
+    setTimeout(() => {
+      if (poeLogsEl) poeLogsEl.classList.add('hidden');
+    }, 2000);
+
     const existingRadio = document.querySelector('input[name="review-node-mode"][value="existing"]');
     if (existingRadio) {
       existingRadio.checked = true;
@@ -1785,8 +1911,20 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
     alert("Immutable review successfully posted to the network!");
   };
 
-  // Post directly
-  runPostReviewTransaction();
+  // Run sequential pipeline
+  if (pipeline.length > 0) {
+    let currentStep = 0;
+    const next = () => {
+      if (currentStep < pipeline.length) {
+        pipeline[currentStep++](next);
+      } else {
+        runPostReviewTransaction();
+      }
+    };
+    next();
+  } else {
+    runPostReviewTransaction();
+  }
 });
 
 // ----------------------------------------------------
@@ -1973,7 +2111,15 @@ function makeSelectSearchable(selectId, placeholderText = "Search options...") {
   });
 }
 
-// Google Maps verified address autocomplete
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+// OpenStreetMap Nominatim verified address autocomplete
 function initAddressVerification() {
   const addressInput = document.getElementById('review-new-address');
   const coordsInput = document.getElementById('review-new-coords');
@@ -2015,19 +2161,7 @@ function initAddressVerification() {
   statusEl.className = 'hidden';
   wrapper.parentNode.appendChild(statusEl);
 
-  const presets = [
-    { name: "200 Congress Ave, Austin, TX", coords: "30.2672° N, 97.7431° W" },
-    { name: "Lady Bird Lake Trail, Austin, TX", coords: "30.2505° N, 97.7505° W" },
-    { name: "402 Market St, San Francisco, CA", coords: "37.7915° N, 122.3995° W" },
-    { name: "705 Morrison St, Portland, OR", coords: "45.5190° N, 122.6792° W" },
-    { name: "Foundry Fab 12, Phoenix, AZ", coords: "33.4484° N, 112.0740° W" },
-    { name: "Silver Creek Road, Picabo, ID", coords: "43.3275° N, 114.1685° W" },
-    { name: "100 Broadway, New York, NY", coords: "40.7075° N, 74.0112° W" },
-    { name: "Space Needle, Seattle, WA", coords: "47.6205° N, 122.3493° W" },
-    { name: "Golden Gate Bridge, San Francisco, CA", coords: "37.8199° N, 122.4783° W" }
-  ];
-
-  const updateSuggestions = () => {
+  const updateSuggestions = async () => {
     menu.innerHTML = '';
     const query = addressInput.value.trim();
     if (!query) {
@@ -2035,79 +2169,238 @@ function initAddressVerification() {
       return;
     }
 
-    // Filter presets
-    let matches = presets.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error("OSM request failed");
+      const data = await response.json();
 
-    // If no preset matches, create a dynamic recommendation
-    if (matches.length === 0) {
-      matches.push({
-        name: `${query}, USA`,
-        coords: `${(30 + (query.length % 15)).toFixed(4)}° N, ${(90 + (query.length % 30)).toFixed(4)}° W`,
-        isDynamic: true
-      });
+      menu.innerHTML = '';
+      if (data.length === 0) {
+        const item = document.createElement('div');
+        item.style.padding = '0.65rem 0.75rem';
+        item.style.fontSize = '0.85rem';
+        item.style.color = '#71717a';
+        item.innerText = 'No matching addresses found';
+        menu.appendChild(item);
+      } else {
+        data.forEach(item => {
+          const lat = parseFloat(item.lat);
+          const lon = parseFloat(item.lon);
+          const formattedCoords = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`;
+
+          const div = document.createElement('div');
+          div.style.padding = '0.65rem 0.75rem';
+          div.style.cursor = 'pointer';
+          div.style.fontSize = '0.85rem';
+          div.style.display = 'flex';
+          div.style.alignItems = 'center';
+          div.style.gap = '0.5rem';
+          div.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+          div.style.transition = 'background 0.2s';
+          div.style.color = '#e2e8f0';
+
+          div.innerHTML = `
+            <span style="color: var(--color-primary); font-size: 0.95rem;">📍</span>
+            <div style="display: flex; flex-direction: column;">
+              <strong>${item.display_name}</strong>
+              <span style="font-size: 0.7rem; color: var(--color-text-muted);">OSM Verified &bull; ${formattedCoords}</span>
+            </div>
+          `;
+
+          div.addEventListener('mouseenter', () => {
+            div.style.background = 'rgba(255,255,255,0.04)';
+          });
+          div.addEventListener('mouseleave', () => {
+            div.style.background = 'transparent';
+          });
+
+          div.addEventListener('click', () => {
+            addressInput.value = item.display_name;
+            if (coordsInput) {
+              coordsInput.value = formattedCoords;
+              coordsInput.style.borderColor = 'var(--color-primary)';
+            }
+            menu.classList.add('hidden');
+            statusEl.innerText = `✓ Address and GPS coordinates verified via OpenStreetMap`;
+            statusEl.classList.remove('hidden');
+            setTimeout(() => {
+              statusEl.classList.add('hidden');
+            }, 4000);
+          });
+
+          menu.appendChild(div);
+        });
+      }
+      menu.classList.remove('hidden');
+    } catch (err) {
+      console.error("OSM geocoding error:", err);
     }
-
-    matches.forEach(m => {
-      const item = document.createElement('div');
-      item.style.padding = '0.65rem 0.75rem';
-      item.style.cursor = 'pointer';
-      item.style.fontSize = '0.85rem';
-      item.style.display = 'flex';
-      item.style.alignItems = 'center';
-      item.style.gap = '0.5rem';
-      item.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
-      item.style.transition = 'background 0.2s';
-      item.style.color = '#e2e8f0';
-
-      item.innerHTML = `
-        <span style="color: var(--color-primary); font-size: 0.95rem;">📍</span>
-        <div style="display: flex; flex-direction: column;">
-          <strong>${m.name}</strong>
-          <span style="font-size: 0.7rem; color: var(--color-text-muted);">Google Maps Verified &bull; ${m.coords}</span>
-        </div>
-      `;
-
-      item.addEventListener('mouseenter', () => {
-        item.style.background = 'rgba(255,255,255,0.04)';
-      });
-      item.addEventListener('mouseleave', () => {
-        item.style.background = 'transparent';
-      });
-
-      item.addEventListener('click', () => {
-        addressInput.value = m.name;
-        if (coordsInput) {
-          coordsInput.value = m.coords;
-          coordsInput.style.borderColor = 'var(--color-primary)';
-        }
-        menu.classList.add('hidden');
-        statusEl.innerText = `✓ Address and GPS coordinates verified via Google Maps API`;
-        statusEl.classList.remove('hidden');
-        setTimeout(() => {
-          statusEl.classList.add('hidden');
-        }, 4000);
-      });
-
-      menu.appendChild(item);
-    });
-
-    // Add Google Maps branding line
-    const branding = document.createElement('div');
-    branding.style.padding = '0.35rem 0.75rem';
-    branding.style.background = 'rgba(0,0,0,0.3)';
-    branding.style.borderTop = '1px solid rgba(255,255,255,0.04)';
-    branding.style.fontSize = '0.65rem';
-    branding.style.color = 'var(--color-text-muted)';
-    branding.style.textAlign = 'right';
-    branding.innerHTML = `powered by <strong style="color: #a1a1aa;">Google Maps</strong>`;
-    menu.appendChild(branding);
-
-    menu.classList.remove('hidden');
   };
 
-  addressInput.addEventListener('input', updateSuggestions);
-  addressInput.addEventListener('focus', updateSuggestions);
+  const debouncedUpdate = debounce(updateSuggestions, 300);
 
+  addressInput.addEventListener('input', debouncedUpdate);
+  addressInput.addEventListener('focus', debouncedUpdate);
+
+  // Hide autocomplete menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (e.target !== addressInput && !menu.contains(e.target)) {
+      menu.classList.add('hidden');
+    }
+  });
+}
+
+// Levenshtein Distance for fuzzy matching spelling variations
+function getEditDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+// Coordinate parsing helper
+function parseCoords(coordStr) {
+  if (!coordStr) return null;
+  const decimalRegex = /^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/;
+  const matchDecimal = coordStr.match(decimalRegex);
+  if (matchDecimal) {
+    return {
+      lat: parseFloat(matchDecimal[1]),
+      lon: parseFloat(matchDecimal[2])
+    };
+  }
+
+  const degRegex = /(-?\d+\.\d+)\s*°\s*([NESWnesw])\s*,\s*(-?\d+\.\d+)\s*°\s*([NESWnesw])/;
+  const matchDeg = coordStr.match(degRegex);
+  if (matchDeg) {
+    let lat = parseFloat(matchDeg[1]);
+    const latDir = matchDeg[2].toUpperCase();
+    let lon = parseFloat(matchDeg[3]);
+    const lonDir = matchDeg[4].toUpperCase();
+
+    if (latDir === 'S') lat = -lat;
+    if (lonDir === 'W') lon = -lon;
+    return { lat, lon };
+  }
+  return null;
+}
+
+// Haversine distance formula (in meters)
+function getHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Extract GPS coords from EXIF using exifr library
+async function extractGpsFromImages(files) {
+  if (typeof exifr === 'undefined') {
+    console.error("exifr library not loaded");
+    return null;
+  }
+  for (let file of files) {
+    try {
+      const gps = await exifr.gps(file);
+      if (gps && typeof gps.latitude === 'number' && typeof gps.longitude === 'number') {
+        return gps;
+      }
+    } catch (err) {
+      console.warn("EXIF GPS parsing failed for file:", file.name, err);
+    }
+  }
+  return null;
+}
+
+// Perform client-side WASM OCR using Tesseract.js on images
+async function performOcrOnImages(files, logProgressCb) {
+  if (typeof Tesseract === 'undefined') {
+    console.error("Tesseract.js library not loaded");
+    return "";
+  }
+  let combinedText = "";
+  for (let file of files) {
+    try {
+      let lastPercent = -20;
+      const ret = await Tesseract.recognize(file, 'eng', {
+        logger: m => {
+          if (m.status === 'recognizing text' && logProgressCb) {
+            const percent = Math.floor(m.progress * 10) * 10;
+            if (percent >= lastPercent + 20) {
+              logProgressCb(percent);
+              lastPercent = percent;
+            }
+          }
+        }
+      });
+      combinedText += " " + ret.data.text;
+    } catch (err) {
+      console.error("Tesseract OCR failed for file:", file.name, err);
+    }
+  }
+  return combinedText;
+}
+
+// Fuzzy match keyword/aliases in OCR text
+function fuzzyMatchText(ocrText, targetName, aliases = []) {
+  const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  
+  const normOcr = normalize(ocrText);
+  const normTarget = normalize(targetName);
+  const normAliases = aliases.map(a => normalize(a)).filter(Boolean);
+  
+  if (!normTarget) return false;
+  if (normOcr.includes(normTarget)) return true;
+  for (let alias of normAliases) {
+    if (normOcr.includes(alias)) return true;
+  }
+  
+  // Sliding window Levenshtein check
+  const ocrWords = normOcr.split(' ');
+  const targetWords = normTarget.split(' ');
+  const windowSize = targetWords.length;
+  
+  const threshold = Math.max(1, Math.floor(normTarget.length * 0.25));
+  
+  for (let i = 0; i <= ocrWords.length - windowSize; i++) {
+    const windowPhrase = ocrWords.slice(i, i + windowSize).join(' ');
+    if (getEditDistance(windowPhrase, normTarget) <= threshold) {
+      return true;
+    }
+  }
+  
+  for (let alias of normAliases) {
+    const aliasWords = alias.split(' ');
+    const aWindowSize = aliasWords.length;
+    const aThreshold = Math.max(1, Math.floor(alias.length * 0.25));
+    for (let i = 0; i <= ocrWords.length - aWindowSize; i++) {
+      const windowPhrase = ocrWords.slice(i, i + aWindowSize).join(' ');
+      if (getEditDistance(windowPhrase, alias) <= aThreshold) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // ----------------------------------------------------
@@ -3110,6 +3403,59 @@ document.getElementById('btn-close-global-reviews')?.addEventListener('click', (
     toggleBtn.innerHTML = '<span>📝</span> View All Posts';
   }
 });
+
+// Initialize profile PoE media upload listeners and visibility toggles
+const gpsCheckbox = document.getElementById('chk-profile-gps');
+const ocrCheckbox = document.getElementById('chk-profile-ocr');
+const mediaGroup = document.getElementById('poe-profile-media-group');
+const uploadInput = document.getElementById('poe-profile-image-upload');
+const previewContainer = document.getElementById('poe-profile-preview-container');
+
+if (gpsCheckbox && ocrCheckbox && mediaGroup) {
+  const updatePoeMediaVisibility = () => {
+    if (gpsCheckbox.checked || ocrCheckbox.checked) {
+      mediaGroup.classList.remove('hidden');
+    } else {
+      mediaGroup.classList.add('hidden');
+      if (uploadInput) uploadInput.value = '';
+      if (previewContainer) previewContainer.innerHTML = '';
+      profileUploadedFiles = [];
+    }
+  };
+
+  gpsCheckbox.addEventListener('change', updatePoeMediaVisibility);
+  ocrCheckbox.addEventListener('change', updatePoeMediaVisibility);
+}
+
+if (uploadInput && previewContainer) {
+  uploadInput.addEventListener('change', (e) => {
+    previewContainer.innerHTML = '';
+    profileUploadedFiles = Array.from(e.target.files);
+    
+    profileUploadedFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.width = '60px';
+        wrapper.style.height = '60px';
+        wrapper.style.borderRadius = 'var(--radius-sm)';
+        wrapper.style.border = '1px solid var(--border-color)';
+        wrapper.style.overflow = 'hidden';
+        
+        const img = document.createElement('img');
+        img.src = event.target.result;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        
+        wrapper.appendChild(img);
+        previewContainer.appendChild(wrapper);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+}
 
 // Initial boot
 loadDbState();
