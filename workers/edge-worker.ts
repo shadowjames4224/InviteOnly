@@ -423,7 +423,11 @@ export default {
               const targetProfile = targets[0];
               const targetIsMod = targetProfile.role === 'key_root_moderator' || targetProfile.role === 'moderator';
               const currentUserIsRoot = requester.role === 'key_root_moderator';
-              if (targetIsMod && !currentUserIsRoot) {
+              
+              const itemKeys = Object.keys(item);
+              const isOnlyReputationSync = itemKeys.every(k => k === 'id' || k === 'reputation_score');
+              
+              if (targetIsMod && !currentUserIsRoot && !isOnlyReputationSync) {
                 return new Response(JSON.stringify({ error: 'Safety constraint: Standard moderators cannot modify other moderator profiles.' }), {
                   status: 403,
                   headers: { ...corsHeaders, 'Content-Type': 'application/json' }

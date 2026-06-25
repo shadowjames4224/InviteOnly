@@ -366,15 +366,16 @@ async function syncSnapshotChanges(snapshot) {
         snap.role !== p.role ||
         snap.released_by !== p.released_by ||
         snap.originally_invited_by !== p.originally_invited_by) {
-      updates.push({
-        id: p.id,
-        is_active: p.is_active,
-        reputation_score: p.reputation_score,
-        invited_by: p.invited_by,
-        role: p.role,
-        released_by: p.released_by,
-        originally_invited_by: p.originally_invited_by
-      });
+      
+      const updatePayload = { id: p.id };
+      if (!snap || snap.is_active !== p.is_active) updatePayload.is_active = p.is_active;
+      if (!snap || snap.reputation_score !== p.reputation_score) updatePayload.reputation_score = p.reputation_score;
+      if (!snap || snap.invited_by !== p.invited_by) updatePayload.invited_by = p.invited_by;
+      if (!snap || snap.role !== p.role) updatePayload.role = p.role;
+      if (!snap || snap.released_by !== p.released_by) updatePayload.released_by = p.released_by;
+      if (!snap || snap.originally_invited_by !== p.originally_invited_by) updatePayload.originally_invited_by = p.originally_invited_by;
+
+      updates.push(updatePayload);
     }
   });
   if (updates.length > 0) {
@@ -2927,8 +2928,8 @@ document.getElementById('btn-admin-delete-user')?.addEventListener('click', asyn
   db.invite_tokens = db.invite_tokens.filter(t => t.inviter_id !== target.id || t.is_used);
 
   // Sync deletion and re-linking changes to Supabase
-  await deleteProfileOnEdge(target.id);
   await syncSnapshotChanges(snapshot.filter(s => s.id !== target.id));
+  await deleteProfileOnEdge(target.id);
 
   resetAdminProfileDetails();
   computeReputationDecay();
