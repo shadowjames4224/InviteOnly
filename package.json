@@ -6,7 +6,7 @@
     "start": "python3 -m http.server 8080 --directory frontend",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:migrate": "python3 database/migrate.py",
+    "db:migrate": "node database/migrate.js",
     "worker:install": "cd workers && npm install",
     "worker:dev": "cd workers && npm run dev",
     "worker:deploy": "cd workers && npm run deploy",

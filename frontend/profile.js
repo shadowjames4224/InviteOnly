@@ -167,7 +167,7 @@ function loadDbState() {
     }
   }
   const wasChanged = checkSuspensions();
-  computeReputationDecay();
+
   if (wasChanged) {
     saveDbState();
   }
@@ -442,10 +442,7 @@ function getDbProfilesSnapshot() {
   }));
 }
 
-async function syncSnapshotChanges(snapshot) {
-  // DEPRECATED: The frontend is now a dumb terminal. 
-  // It no longer pushes locally mutated state back to the edge.
-}
+
 
 
 function checkSuspensions() {
@@ -535,10 +532,7 @@ function getLineageAlpha() {
   return 0.25; // default alpha
 }
 
-function computeReputationDecay() {
-  // DEPRECATED: Reputation decay is now handled by a Postgres CRON job on the server.
-  // The frontend acts as a dumb terminal and will simply fetch the latest state.
-}
+
 
 // Helper to construct breadcrumb node path (e.g. Earth / United States / Texas / Austin)
 function getNodePathString(node) {
@@ -817,11 +811,9 @@ window.revokeRedeemedUser = async function(inviteeId) {
     p.reputation_score = 0.0000;
   });
 
-  computeReputationDecay();
   saveDbState();
   
   // Sync cascading updates to Supabase
-  await syncSnapshotChanges(snapshot);
 
   // Refresh UI
   renderInviteHub();
@@ -1789,7 +1781,6 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
       existingRadio.dispatchEvent(new Event('change'));
     }
 
-    computeReputationDecay();
     renderMyReviewsFeed();
     alert("Immutable review successfully posted to the network!");
   };
@@ -1805,8 +1796,7 @@ window.addEventListener('storage', (e) => {
   if (e.key === 'review_network_db') {
     try {
       db = JSON.parse(e.newValue);
-      computeReputationDecay();
-      
+
       // If our profile was revoked in another window, log us out immediately!
       if (currentUser) {
         const freshProfile = db.profiles.find(p => p.id === currentUser.id);
@@ -2439,8 +2429,7 @@ window.deleteReviewFromConsole = function(reviewId) {
   db.reviews = db.reviews.filter(r => r.id !== reviewId);
   db.vouches_disputes = db.vouches_disputes.filter(v => v.review_id !== reviewId);
   db.review_tags = db.review_tags.filter(rt => rt.review_id !== reviewId);
-  
-  computeReputationDecay();
+
   saveDbState();
   populateAdminInviterDropdown();
   populateAdminManageUserDropdown();
@@ -2525,8 +2514,7 @@ window.deleteReviewFromGlobal = function(reviewId) {
   db.reviews = db.reviews.filter(r => r.id !== reviewId);
   db.vouches_disputes = db.vouches_disputes.filter(v => v.review_id !== reviewId);
   db.review_tags = db.review_tags.filter(rt => rt.review_id !== reviewId);
-  
-  computeReputationDecay();
+
   saveDbState();
   
   // Refresh views
@@ -2606,11 +2594,9 @@ document.getElementById('btn-admin-revoke-user')?.addEventListener('click', asyn
     p.suspended_until = null;
   });
 
-  computeReputationDecay();
   saveDbState();
 
   // Sync to Supabase via CF Worker
-  await syncSnapshotChanges(snapshot);
 
   populateAdminInviterDropdown();
   populateAdminManageUserDropdown();
@@ -2749,8 +2735,7 @@ document.getElementById('admin-lineage-alpha')?.addEventListener('input', (e) =>
   document.getElementById('admin-alpha-value').innerText = val.toFixed(2);
   
   localStorage.setItem('review_network_settings', JSON.stringify({ lineageAlpha: val }));
-  
-  computeReputationDecay();
+
   renderAdminInviteGraph();
   if (selectedAdminProfileId) {
     selectAdminProfile(selectedAdminProfileId);
@@ -2838,11 +2823,10 @@ document.getElementById('btn-admin-create-user')?.addEventListener('click', asyn
   const snapshot = getDbProfilesSnapshot();
 
   db.profiles.push(newProfile);
-  computeReputationDecay();
+
   saveDbState();
 
   // Sync downstream reputation changes
-  await syncSnapshotChanges(snapshot);
 
   // Clear form fields
   document.getElementById('input-admin-create-username').value = '';
@@ -2899,11 +2883,9 @@ document.getElementById('btn-admin-toggle-status')?.addEventListener('click', as
     target.suspended_until = null;
   }
 
-  computeReputationDecay();
   saveDbState();
 
   // Sync state & downstream reputation decay changes
-  await syncSnapshotChanges(snapshot);
 
   populateAdminInviterDropdown();
   populateAdminManageUserDropdown();
@@ -2947,11 +2929,9 @@ document.getElementById('btn-admin-update-rep')?.addEventListener('click', async
 
   target.base_reputation = newRepVal;
 
-  computeReputationDecay();
   saveDbState();
 
   // Sync manual reputation and cascading decay updates to Supabase
-  await syncSnapshotChanges(snapshot);
 
   populateAdminInviterDropdown();
   renderAdminInviteGraph();
@@ -3002,11 +2982,11 @@ document.getElementById('btn-admin-delete-user')?.addEventListener('click', asyn
   db.invite_tokens = db.invite_tokens.filter(t => t.inviter_id !== target.id || t.is_used);
 
   // Sync deletion and re-linking changes to Supabase
-  await syncSnapshotChanges(snapshot.filter(s => s.id !== target.id));
+
   await deleteProfileOnEdge(target.id);
 
   resetAdminProfileDetails();
-  computeReputationDecay();
+
   saveDbState();
   populateAdminInviterDropdown();
   populateAdminManageUserDropdown();
@@ -3084,12 +3064,11 @@ document.getElementById('btn-admin-apply-role-relation')?.addEventListener('clic
     successMsg = `✓ Account @${target.username} has been freed (released) as a standalone account.`;
   }
 
-  computeReputationDecay();
   saveDbState();
 
   // Sync changes to Supabase
   try {
-    await syncSnapshotChanges(snapshot);
+
   } catch (err) {
     alert("Warning: Failed to sync changes to database: " + err.message);
   }
