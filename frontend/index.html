@@ -28,10 +28,10 @@
         <!-- Group 1: Feed & Explore -->
         <div class="nav-group">
           <div class="nav-group-title">Explore</div>
-          <button class="nav-tab-btn active" data-tab="feed-view">
+          <button type="button" class="nav-tab-btn active" data-tab="feed-view">
             <span class="btn-icon">🏠</span> Home
           </button>
-          <button class="nav-tab-btn" data-tab="browse-view">
+          <button type="button" class="nav-tab-btn" data-tab="browse-view">
             <span class="btn-icon">📁</span> Directory
           </button>
         </div>
@@ -39,10 +39,10 @@
         <!-- Group 2: Social -->
         <div class="nav-group">
           <div class="nav-group-title">Community</div>
-          <button class="nav-tab-btn" data-tab="following-view" id="nav-btn-following">
+          <button type="button" class="nav-tab-btn" data-tab="following-view" id="nav-btn-following">
             <span class="btn-icon">👥</span> Following Feed
           </button>
-          <button class="nav-tab-btn" data-tab="users-view" id="nav-btn-users">
+          <button type="button" class="nav-tab-btn" data-tab="users-view" id="nav-btn-users">
             <span class="btn-icon">🔍</span> Search Users
           </button>
         </div>
@@ -50,7 +50,7 @@
         <!-- Group 3: Publish -->
         <div class="nav-group">
           <div class="nav-group-title">Write</div>
-          <button class="nav-tab-btn" data-tab="submit-view" id="nav-btn-submit">
+          <button type="button" class="nav-tab-btn" data-tab="submit-view" id="nav-btn-submit">
             <span class="btn-icon">📝</span> Post Review
           </button>
         </div>
@@ -103,7 +103,7 @@
       <!-- Active Filter indicator -->
       <div class="active-filter-indicator hidden" id="active-tag-indicator">
         Showing reviews tagged with <span class="filter-tag-badge" id="active-tag-name">#tag</span>
-        <button class="btn-clear-filter" id="btn-clear-tag-filter">✕ Clear Filter</button>
+        <button type="button" class="btn-clear-filter" id="btn-clear-tag-filter">✕ Clear Filter</button>
       </div>
 
       <!-- Feed Container -->
@@ -218,8 +218,8 @@
           <h2>Access Key Required</h2>
           <p>You must authenticate to write immutable reviews. Use your invitation Access Key or log in via your profile dashboard.</p>
           <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-            <button class="btn btn-primary" onclick="location.href='profile.html'">Go to Login Dashboard</button>
-            <button class="btn btn-secondary" onclick="location.href='home.html#invite-section'">Redeem Invite Token</button>
+            <button type="button" class="btn btn-primary" onclick="location.href='profile.html'">Go to Login Dashboard</button>
+            <button type="button" class="btn btn-secondary" onclick="location.href='home.html#invite-section'">Redeem Invite Token</button>
           </div>
         </div>
 
@@ -356,7 +356,7 @@
             <div class="terminal-log hidden" id="portal-poe-logs" style="margin-top: 1rem; max-height: 150px;"></div>
 
             <!-- Submission CTA -->
-            <button class="btn btn-primary btn-full" id="btn-portal-submit-review" style="margin-top: 1.25rem;">Submit Immutable Review</button>
+            <button type="button" class="btn btn-primary btn-full" id="btn-portal-submit-review" style="margin-top: 1.25rem;">Submit Immutable Review</button>
           </div>
         </div>
       </div>
@@ -383,7 +383,7 @@
             <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; color: #a1a1aa; font-family: var(--font-heading);">Change Username</h4>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
               <input type="text" id="settings-new-username" class="select-field" style="padding: 0.5rem; font-size: 0.85rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-sm); flex: 1; color: white;" placeholder="New username">
-              <button class="btn btn-primary" id="btn-settings-change-username" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: var(--radius-sm);">Update</button>
+              <button type="button" class="btn btn-primary" id="btn-settings-change-username" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: var(--radius-sm);">Update</button>
             </div>
             <span style="font-size: 0.65rem; color: var(--color-text-dim); margin-top: 0.35rem; display: block;">Must be 3-15 chars (letters, numbers, underscores). Changing your username will update your Access Key.</span>
             <div id="username-change-error" class="signup-status-message error hidden" style="margin-top: 0.5rem; font-size: 0.8rem;"></div>

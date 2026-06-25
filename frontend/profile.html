@@ -89,7 +89,7 @@
       <input type="password" id="login-access-key" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;" placeholder="e.g. key_username_suffix">
     </div>
     
-    <button class="btn btn-primary btn-full" style="margin-top: 1rem;" id="btn-login">Verify Key & Access Network</button>
+    <button type="button" class="btn btn-primary btn-full" style="margin-top: 1rem;" id="btn-login">Verify Key & Access Network</button>
     <div class="signup-status-message error hidden" style="margin-top: 1rem;" id="login-error-msg"></div>
 
     <div style="margin-top: 1.5rem; text-align: center;">
@@ -107,7 +107,7 @@
         <label for="profile-reg-username" style="font-size: 0.75rem;">Select Public Username</label>
         <input type="text" id="profile-reg-username" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; font-size: 0.85rem;" placeholder="3-15 chars, alphanumeric">
       </div>
-      <button class="btn btn-primary btn-full" id="btn-profile-signup">Register & Automatically Log In</button>
+      <button type="button" class="btn btn-primary btn-full" id="btn-profile-signup">Register & Automatically Log In</button>
       <div class="signup-status-message error hidden" style="margin-top: 0.75rem;" id="profile-signup-msg"></div>
     </div>
 
@@ -179,7 +179,7 @@
           </div>
           <p class="card-desc" style="font-size: 0.85rem; margin-bottom: 1rem;">Generate single-use invitation tokens. Each profile is limited to <strong>5 total invites</strong>.</p>
           
-          <button class="btn btn-primary btn-full" id="btn-generate-profile-token">
+          <button type="button" class="btn btn-primary btn-full" id="btn-generate-profile-token">
             Generate Invite Token
           </button>
 
