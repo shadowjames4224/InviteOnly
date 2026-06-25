@@ -13,7 +13,7 @@ function getSeedData() {
   return {
     version: 2,
     profiles: [
-      { id: '00000000-0000-0000-0000-000000000001', username: 'root_moderator', reputation_score: 1.0000, base_reputation: 1.0000, invited_by: null, is_active: true, access_key: 'key_root_moderator' }
+      { id: '00000000-0000-0000-0000-000000000001', username: 'root_moderator', reputation_score: 1.0000, base_reputation: 1.0000, invited_by: null, is_active: true, access_key: 'key_root_moderator', role: 'key_root_moderator' }
     ],
     nodes: [
       { id: 1, parent_id: null, name: 'Earth', slug: 'earth', node_type: 'planet', path: '1' },
@@ -236,6 +236,7 @@ async function syncLiveProfiles() {
             localP.is_active = liveP.is_active;
             localP.released_by = liveP.released_by;
             localP.originally_invited_by = liveP.originally_invited_by;
+            localP.role = liveP.role;
           } else {
             db.profiles.push({
               id: liveP.id,
@@ -246,7 +247,8 @@ async function syncLiveProfiles() {
               is_active: liveP.is_active,
               access_key: 'key_' + liveP.username,
               released_by: liveP.released_by,
-              originally_invited_by: liveP.originally_invited_by
+              originally_invited_by: liveP.originally_invited_by,
+              role: liveP.role
             });
           }
         });
@@ -343,7 +345,10 @@ function getDbProfilesSnapshot() {
     id: p.id,
     is_active: p.is_active,
     reputation_score: p.reputation_score,
-    invited_by: p.invited_by
+    invited_by: p.invited_by,
+    role: p.role,
+    released_by: p.released_by,
+    originally_invited_by: p.originally_invited_by
   }));
 }
 
@@ -354,12 +359,21 @@ async function syncSnapshotChanges(snapshot) {
     if (p.id === '00000000-0000-0000-0000-000000000001') return;
 
     const snap = snapshot.find(s => s.id === p.id);
-    if (!snap || snap.is_active !== p.is_active || snap.reputation_score !== p.reputation_score || snap.invited_by !== p.invited_by) {
+    if (!snap || 
+        snap.is_active !== p.is_active || 
+        snap.reputation_score !== p.reputation_score || 
+        snap.invited_by !== p.invited_by ||
+        snap.role !== p.role ||
+        snap.released_by !== p.released_by ||
+        snap.originally_invited_by !== p.originally_invited_by) {
       updates.push({
         id: p.id,
         is_active: p.is_active,
         reputation_score: p.reputation_score,
-        invited_by: p.invited_by
+        invited_by: p.invited_by,
+        role: p.role,
+        released_by: p.released_by,
+        originally_invited_by: p.originally_invited_by
       });
     }
   });
@@ -573,7 +587,7 @@ function showDashboard() {
   initAddressVerification();
 
   // Show/hide Admin Management Console based on whether user is root_moderator or a moderator
-  const isModerator = currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001';
+  const isModerator = currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator';
   const adminPanel = document.getElementById('admin-management-panel');
   if (adminPanel) {
     if (isModerator) {
@@ -625,7 +639,7 @@ function renderProfileCard() {
 }
 
 function renderInviteHub() {
-  const isMod = currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001';
+  const isMod = currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator';
   const myPendingTokens = db.invite_tokens.filter(t => t.inviter_id === currentUser.id && !t.is_used);
   const totalGenerated = db.invite_tokens.filter(t => t.inviter_id === currentUser.id).length;
 
@@ -1391,7 +1405,7 @@ window.quickLogin = function(key) {
 
 // Generate invite token
 document.getElementById('btn-generate-profile-token')?.addEventListener('click', async () => {
-  const isMod = currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001';
+  const isMod = currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator';
   const totalGenerated = db.invite_tokens.filter(t => t.inviter_id === currentUser.id).length;
   if (isMod) {
     const releasedCount = db.profiles.filter(p => p.originally_invited_by === currentUser.id && p.released_by === currentUser.id).length;
@@ -2108,9 +2122,8 @@ function renderAdminReleasedList() {
   // Get all accounts that were originally invited by a moderator, and released by a moderator
   const isModProfile = (profileId) => {
     if (!profileId) return false;
-    if (profileId === '00000000-0000-0000-0000-000000000001') return true;
     const parent = db.profiles.find(p => p.id === profileId);
-    return parent && parent.invited_by === '00000000-0000-0000-0000-000000000001';
+    return parent && (parent.role === 'key_root_moderator' || parent.role === 'moderator');
   };
 
   const releasedProfiles = db.profiles.filter(p => p.released_by && isModProfile(p.released_by));
@@ -2275,12 +2288,24 @@ window.selectAdminProfile = function(profileId) {
   }
 
   // Safety controls configuration for root moderator & role hierarchy
-  const targetIsMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
-  const currentUserIsRoot = currentUser.id === '00000000-0000-0000-0000-000000000001';
+  const targetIsMod = profile.role === 'key_root_moderator' || profile.role === 'moderator';
+  const currentUserIsRoot = currentUser.role === 'key_root_moderator';
   const disableModActions = targetIsMod && !currentUserIsRoot;
   
-  const isRootUser = profile.id === '00000000-0000-0000-0000-000000000001';
+  const isRootUser = profile.role === 'key_root_moderator';
   const shouldDisable = isRootUser || disableModActions;
+
+  // Populate the role dropdown and apply button status
+  const selectRoleRelation = document.getElementById('select-admin-role-relation');
+  if (selectRoleRelation) {
+    if (profile.role === 'key_root_moderator' || profile.role === 'moderator') {
+      selectRoleRelation.value = 'moderator';
+    } else if (profile.role === 'user' && profile.invited_by === null) {
+      selectRoleRelation.value = 'released';
+    } else {
+      selectRoleRelation.value = 'user';
+    }
+  }
   
   const btnRevoke = document.getElementById('btn-admin-revoke-user');
   if (btnRevoke) btnRevoke.disabled = false;
@@ -2471,8 +2496,8 @@ document.getElementById('btn-admin-revoke-user')?.addEventListener('click', asyn
   const target = db.profiles.find(p => p.id === selectedAdminProfileId);
   if (!target || !target.is_active) return;
 
-  const targetIsMod = target.id === '00000000-0000-0000-0000-000000000001' || target.invited_by === '00000000-0000-0000-0000-000000000001';
-  const currentUserIsRoot = currentUser.id === '00000000-0000-0000-0000-000000000001';
+  const targetIsMod = target.role === 'key_root_moderator' || target.role === 'moderator';
+  const currentUserIsRoot = currentUser.role === 'key_root_moderator';
   if (targetIsMod && !currentUserIsRoot) {
     alert("Safety constraint: Standard moderators cannot revoke or modify other moderator profiles.");
     return;
@@ -2582,7 +2607,7 @@ document.getElementById('btn-admin-create-behalf-invite')?.addEventListener('cli
   if (!profile || !profile.is_active) return;
 
   const myTokens = db.invite_tokens.filter(t => t.inviter_id === profile.id);
-  const isTargetMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+  const isTargetMod = profile.role === 'key_root_moderator' || profile.role === 'moderator';
   if (myTokens.length >= 5 && !isTargetMod) {
     alert(`Quota reached: @${profile.username} cannot generate more than 5 invite tokens.`);
     return;
@@ -2765,8 +2790,8 @@ document.getElementById('btn-admin-toggle-status')?.addEventListener('click', as
   const target = db.profiles.find(p => p.id === selectedAdminProfileId);
   if (!target) return;
 
-  const targetIsMod = target.id === '00000000-0000-0000-0000-000000000001' || target.invited_by === '00000000-0000-0000-0000-000000000001';
-  const currentUserIsRoot = currentUser.id === '00000000-0000-0000-0000-000000000001';
+  const targetIsMod = target.role === 'key_root_moderator' || target.role === 'moderator';
+  const currentUserIsRoot = currentUser.role === 'key_root_moderator';
   if (targetIsMod && !currentUserIsRoot) {
     alert("Safety constraint: Standard moderators cannot revoke or modify other moderator profiles.");
     return;
@@ -2830,8 +2855,8 @@ document.getElementById('btn-admin-update-rep')?.addEventListener('click', async
   const target = db.profiles.find(p => p.id === selectedAdminProfileId);
   if (!target) return;
 
-  const targetIsMod = target.id === '00000000-0000-0000-0000-000000000001' || target.invited_by === '00000000-0000-0000-0000-000000000001';
-  const currentUserIsRoot = currentUser.id === '00000000-0000-0000-0000-000000000001';
+  const targetIsMod = target.role === 'key_root_moderator' || target.role === 'moderator';
+  const currentUserIsRoot = currentUser.role === 'key_root_moderator';
   if (targetIsMod && !currentUserIsRoot) {
     alert("Safety constraint: Standard moderators cannot revoke or modify other moderator profiles.");
     return;
@@ -2869,8 +2894,8 @@ document.getElementById('btn-admin-delete-user')?.addEventListener('click', asyn
   const target = db.profiles.find(p => p.id === selectedAdminProfileId);
   if (!target) return;
 
-  const targetIsMod = target.id === '00000000-0000-0000-0000-000000000001' || target.invited_by === '00000000-0000-0000-0000-000000000001';
-  const currentUserIsRoot = currentUser.id === '00000000-0000-0000-0000-000000000001';
+  const targetIsMod = target.role === 'key_root_moderator' || target.role === 'moderator';
+  const currentUserIsRoot = currentUser.role === 'key_root_moderator';
   if (targetIsMod && !currentUserIsRoot) {
     alert("Safety constraint: Standard moderators cannot revoke or modify other moderator profiles.");
     return;
@@ -2926,6 +2951,76 @@ document.getElementById('select-admin-manage-user')?.addEventListener('change', 
   } else {
     resetAdminProfileDetails();
   }
+});
+
+// Apply user role & relation change
+document.getElementById('btn-admin-apply-role-relation')?.addEventListener('click', async () => {
+  if (!selectedAdminProfileId) return;
+  const target = db.profiles.find(p => p.id === selectedAdminProfileId);
+  if (!target) return;
+
+  const targetIsMod = target.role === 'key_root_moderator' || target.role === 'moderator';
+  const currentUserIsRoot = currentUser.role === 'key_root_moderator';
+  if (targetIsMod && !currentUserIsRoot) {
+    alert("Safety constraint: Standard moderators cannot modify other moderator profiles.");
+    return;
+  }
+
+  if (target.id === '00000000-0000-0000-0000-000000000001') {
+    alert("Safety constraint: Cannot modify root moderator.");
+    return;
+  }
+
+  const selectRoleRelation = document.getElementById('select-admin-role-relation');
+  if (!selectRoleRelation) return;
+  const selectedVal = selectRoleRelation.value;
+
+  const snapshot = getDbProfilesSnapshot();
+
+  let successMsg = '';
+
+  if (selectedVal === 'user') {
+    target.role = 'user';
+    // If they were released, re-link back to their original inviter or the current admin
+    if (target.invited_by === null) {
+      target.invited_by = target.originally_invited_by || target.released_by || currentUser.id;
+    }
+    target.released_by = null;
+    successMsg = `✓ Account @${target.username} role updated to Standard User.`;
+  } else if (selectedVal === 'moderator') {
+    target.role = 'moderator';
+    // Ensure they have an inviter even if they were released previously
+    if (target.invited_by === null) {
+      target.invited_by = target.originally_invited_by || target.released_by || currentUser.id;
+    }
+    target.released_by = null;
+    successMsg = `✓ Account @${target.username} role updated to Moderator.`;
+  } else if (selectedVal === 'released') {
+    target.role = 'user';
+    if (target.invited_by !== null) {
+      target.originally_invited_by = target.invited_by;
+      target.released_by = currentUser.id;
+      target.invited_by = null;
+    }
+    successMsg = `✓ Account @${target.username} has been freed (released) as a standalone account.`;
+  }
+
+  computeReputationDecay();
+  saveDbState();
+
+  // Sync changes to Supabase
+  await syncSnapshotChanges(snapshot);
+
+  populateAdminInviterDropdown();
+  populateAdminManageUserDropdown();
+  renderAdminInviteGraph();
+  renderAdminReleasedList();
+  selectAdminProfile(selectedAdminProfileId);
+
+  // Update other views via event trigger
+  window.dispatchEvent(new Event('storage'));
+
+  alert(successMsg);
 });
 
 // Toggle global reviews manager visibility

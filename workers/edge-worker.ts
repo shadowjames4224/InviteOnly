@@ -69,7 +69,7 @@ export default {
 
         if (profileId) {
           try {
-            const profileDetailRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${profileId}&select=id,username,reputation_score,invited_by`, {
+            const profileDetailRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${profileId}&select=id,username,reputation_score,invited_by,role`, {
               method: 'GET',
               headers: {
                 'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -168,7 +168,7 @@ export default {
         }
 
         // Query Supabase for the requester profile
-        const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by`, {
+        const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by,role`, {
           method: 'GET',
           headers: {
             'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -194,7 +194,7 @@ export default {
 
         // Determine target inviter profile
         let targetProfile = profile;
-        const isRoot = profile.id === '00000000-0000-0000-0000-000000000001';
+        const isRoot = profile.role === 'key_root_moderator';
 
         if (inviterUsername && inviterUsername !== profile.username) {
           if (!isRoot) {
@@ -204,7 +204,7 @@ export default {
             });
           }
 
-          const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${inviterUsername}&select=id,username,is_active,invited_by`, {
+          const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${inviterUsername}&select=id,username,is_active,invited_by,role`, {
             method: 'GET',
             headers: {
               'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -223,7 +223,7 @@ export default {
         }
 
         // Enforce quota limits: 20 for moderators, 5 for standard users
-        const isTargetMod = targetProfile.id === '00000000-0000-0000-0000-000000000001' || targetProfile.invited_by === '00000000-0000-0000-0000-000000000001';
+        const isTargetMod = targetProfile.role === 'key_root_moderator' || targetProfile.role === 'moderator';
         if (isTargetMod) {
           // Fetch all generated tokens
           const tokensRes = await fetch(`${env.SUPABASE_URL}/rest/v1/invite_tokens?inviter_id=eq.${targetProfile.id}&select=token`, {
@@ -318,7 +318,7 @@ export default {
 
       // Route 4: Fetch All Profiles Endpoint (for lineage sync)
       if (url.pathname === '/api/profiles' && request.method === 'GET') {
-        const response = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?select=id,username,reputation_score,invited_by,is_active,released_by,originally_invited_by`, {
+        const response = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?select=id,username,reputation_score,invited_by,is_active,released_by,originally_invited_by,role`, {
           method: 'GET',
           headers: {
             'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -368,7 +368,7 @@ export default {
         }
 
         // Query Supabase for the requester profile
-        const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by`, {
+        const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by,role`, {
           method: 'GET',
           headers: {
             'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -392,8 +392,8 @@ export default {
           });
         }
 
-        // Verify that the requester is indeed a moderator (root moderator or user invited by root moderator)
-        const isMod = requester.id === '00000000-0000-0000-0000-000000000001' || requester.invited_by === '00000000-0000-0000-0000-000000000001';
+        // Verify that the requester is indeed a moderator (root moderator or standard moderator)
+        const isMod = requester.role === 'key_root_moderator' || requester.role === 'moderator';
         if (!isMod) {
           return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can perform this action.' }), {
             status: 403,
@@ -411,7 +411,7 @@ export default {
 
           for (const item of updates) {
             // Fetch target profile first to enforce safety constraints
-            const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${item.id}&select=id,invited_by`, {
+            const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${item.id}&select=id,invited_by,role`, {
               method: 'GET',
               headers: {
                 'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -421,8 +421,8 @@ export default {
             const targets = await targetRes.json();
             if (targetRes.ok && targets && targets.length > 0) {
               const targetProfile = targets[0];
-              const targetIsMod = targetProfile.id === '00000000-0000-0000-0000-000000000001' || targetProfile.invited_by === '00000000-0000-0000-0000-000000000001';
-              const currentUserIsRoot = requester.id === '00000000-0000-0000-0000-000000000001';
+              const targetIsMod = targetProfile.role === 'key_root_moderator' || targetProfile.role === 'moderator';
+              const currentUserIsRoot = requester.role === 'key_root_moderator';
               if (targetIsMod && !currentUserIsRoot) {
                 return new Response(JSON.stringify({ error: 'Safety constraint: Standard moderators cannot modify other moderator profiles.' }), {
                   status: 403,
@@ -448,7 +448,10 @@ export default {
               body: JSON.stringify({
                 is_active: item.is_active !== undefined ? item.is_active : undefined,
                 reputation_score: item.reputation_score !== undefined ? item.reputation_score : undefined,
-                invited_by: item.invited_by !== undefined ? item.invited_by : undefined
+                invited_by: item.invited_by !== undefined ? item.invited_by : undefined,
+                role: item.role !== undefined ? item.role : undefined,
+                released_by: item.released_by !== undefined ? item.released_by : undefined,
+                originally_invited_by: item.originally_invited_by !== undefined ? item.originally_invited_by : undefined
               })
             });
             if (!patchRes.ok) {
@@ -475,7 +478,7 @@ export default {
           }
 
           // Fetch target profile first to enforce safety constraints
-          const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${targetId}&select=id,invited_by`, {
+          const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${targetId}&select=id,invited_by,role`, {
             method: 'GET',
             headers: {
               'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -490,8 +493,8 @@ export default {
             });
           }
           const targetProfile = targets[0];
-          const targetIsMod = targetProfile.id === '00000000-0000-0000-0000-000000000001' || targetProfile.invited_by === '00000000-0000-0000-0000-000000000001';
-          const currentUserIsRoot = requester.id === '00000000-0000-0000-0000-000000000001';
+          const targetIsMod = targetProfile.role === 'key_root_moderator' || targetProfile.role === 'moderator';
+          const currentUserIsRoot = requester.role === 'key_root_moderator';
           if (targetIsMod && !currentUserIsRoot) {
             return new Response(JSON.stringify({ error: 'Safety constraint: Standard moderators cannot delete other moderator profiles.' }), {
               status: 403,
@@ -799,7 +802,7 @@ export default {
           });
         }
 
-        const isMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+        const isMod = profile.role === 'key_root_moderator' || profile.role === 'moderator';
         if (!isMod) {
           return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can delete reviews.' }), {
             status: 403,
@@ -853,7 +856,7 @@ export default {
           });
         }
 
-        const isMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+        const isMod = profile.role === 'key_root_moderator' || profile.role === 'moderator';
         if (!isMod) {
           return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can delete spaces.' }), {
             status: 403,
@@ -907,7 +910,7 @@ export default {
           });
         }
 
-        const isMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+        const isMod = profile.role === 'key_root_moderator' || profile.role === 'moderator';
         if (!isMod) {
           return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can merge spaces.' }), {
             status: 403,
@@ -972,7 +975,7 @@ export default {
           });
         }
 
-        const isMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+        const isMod = profile.role === 'key_root_moderator' || profile.role === 'moderator';
         if (!isMod) {
           return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can release users.' }), {
             status: 403,
@@ -1362,7 +1365,7 @@ async function authenticateUser(authKey, env) {
   }
 
   try {
-    const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by`, {
+    const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by,role`, {
       method: 'GET',
       headers: {
         'apikey': env.SUPABASE_SERVICE_ROLE_KEY,

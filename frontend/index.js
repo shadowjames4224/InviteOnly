@@ -35,7 +35,7 @@ function getSeedData() {
   return {
     version: 2,
     profiles: [
-      { id: '00000000-0000-0000-0000-000000000001', username: 'root_moderator', reputation_score: 1.0000, base_reputation: 1.0000, invited_by: null, is_active: true, access_key: 'key_root_moderator' }
+      { id: '00000000-0000-0000-0000-000000000001', username: 'root_moderator', reputation_score: 1.0000, base_reputation: 1.0000, invited_by: null, is_active: true, access_key: 'key_root_moderator', role: 'key_root_moderator' }
     ],
     nodes: [
       { id: 1, parent_id: null, name: 'Earth', slug: 'earth', node_type: 'planet', path: '1' },
@@ -333,6 +333,9 @@ async function syncLiveProfiles() {
             localP.reputation_score = parseFloat(liveP.reputation_score);
             localP.invited_by = liveP.invited_by;
             localP.is_active = liveP.is_active;
+            localP.role = liveP.role;
+            localP.released_by = liveP.released_by;
+            localP.originally_invited_by = liveP.originally_invited_by;
           } else {
             db.profiles.push({
               id: liveP.id,
@@ -341,7 +344,10 @@ async function syncLiveProfiles() {
               base_reputation: parseFloat(liveP.reputation_score),
               invited_by: liveP.invited_by,
               is_active: liveP.is_active,
-              access_key: 'key_' + liveP.username
+              access_key: 'key_' + liveP.username,
+              role: liveP.role,
+              released_by: liveP.released_by,
+              originally_invited_by: liveP.originally_invited_by
             });
           }
         });
@@ -389,7 +395,7 @@ function syncCurrentUser() {
   }
 
   const adminElements = document.querySelectorAll('.admin-only');
-  const isAdmin = currentUser && (currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001');
+  const isAdmin = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
   adminElements.forEach(el => {
     if (isAdmin) {
       el.classList.remove('hidden');
@@ -838,7 +844,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
   const isCollapsed = isContested && !settingsRevealConsent;
 
   let deleteBtnHtml = '';
-  const isModerator = currentUser && (currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001');
+  const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
   if (isModerator) {
     deleteBtnHtml = `<button class="btn-delete-review" onclick="deleteReviewFromFeed('${r.id}')" style="background: transparent; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);" onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.05)'">🗑️ Delete</button>`;
   }
@@ -1505,7 +1511,7 @@ function renderNodeDetail(node) {
   if (avgConsensus < 0.70) consensusBadgeColor = 'var(--color-warning)';
   if (avgConsensus < 0.40) consensusBadgeColor = '#f43f5e';
 
-  const isMod = currentUser && (currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001');
+  const isMod = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
   let modActionsButtonHtml = '';
   if (isMod && node.parent_id !== null) {
     modActionsButtonHtml = `
@@ -1587,7 +1593,7 @@ function renderNodeDetail(node) {
     }
 
     let deleteBtnHtml = '';
-    const isModerator = currentUser && (currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001');
+    const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
     if (isModerator) {
       deleteBtnHtml = `<button class="btn-delete-review" onclick="deleteReviewFromFeed('${r.id}')" style="background: transparent; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.7rem; padding: 1px 4px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);" onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.05)'">🗑️ Delete</button>`;
     }

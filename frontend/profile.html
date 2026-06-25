@@ -259,6 +259,18 @@
                     </div>
                   </div>
 
+                  <div class="form-group" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <label for="select-admin-role-relation" style="font-size: 0.8rem; color: #a1a1aa; text-transform: uppercase;">Role & Relationship</label>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                      <select id="select-admin-role-relation" class="select-field" style="flex: 1; padding: 0.4rem 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white;">
+                        <option value="user">Standard User</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="released">Released (Standalone)</option>
+                      </select>
+                      <button class="btn btn-primary" id="btn-admin-apply-role-relation" style="padding: 0.4rem 1rem;">Apply</button>
+                    </div>
+                  </div>
+
                   <div class="details-actions" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                     <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
                       <select id="select-admin-suspend-duration" class="select-field" style="flex: 1; min-width: 120px; padding: 0.4rem 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white;" title="Suspension duration when active">
