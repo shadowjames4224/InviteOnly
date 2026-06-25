@@ -288,6 +288,8 @@ async function syncLiveReviews() {
               });
             }
           });
+          const liveNodeIds = result.nodes.map(n => n.id);
+          db.nodes = db.nodes.filter(n => liveNodeIds.includes(n.id));
         }
 
         // Merge vouches_disputes
@@ -846,7 +848,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
   let deleteBtnHtml = '';
   const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
   if (isModerator) {
-    deleteBtnHtml = `<button class="btn-delete-review" onclick="deleteReviewFromFeed('${r.id}')" style="background: transparent; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);" onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.05)'">🗑️ Delete</button>`;
+    deleteBtnHtml = `<button class="btn-delete-review" onclick="deleteReviewFromFeed('${r.id}')" style="background: transparent; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);" onmouseenter="this.style.background='rgba(239, 68, 68, 0.15)'" onmouseleave="this.style.background='rgba(239, 68, 68, 0.05)'">🗑️ Delete</button>`;
   }
 
   // Follow/Unfollow button HTML
@@ -857,7 +859,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
     if (isFollowed) {
       followBtnHtml = `<button onclick="toggleFollowUser('${r.author_id}', event)" class="btn-follow" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: #a1a1aa; cursor: pointer; font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; margin-left: 0.5rem; transition: background 0.2s;">👥 Unfollow</button>`;
     } else {
-      followBtnHtml = `<button onclick="toggleFollowUser('${r.author_id}', event)" class="btn-follow active" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--color-primary); cursor: pointer; font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; margin-left: 0.5rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.2)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.1)'">👤+ Follow</button>`;
+      followBtnHtml = `<button onclick="toggleFollowUser('${r.author_id}', event)" class="btn-follow active" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--color-primary); cursor: pointer; font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; margin-left: 0.5rem; transition: background 0.2s;" onmouseenter="this.style.background='rgba(16, 185, 129, 0.2)'" onmouseleave="this.style.background='rgba(16, 185, 129, 0.1)'">👤+ Follow</button>`;
     }
   }
 
@@ -1595,7 +1597,7 @@ function renderNodeDetail(node) {
     let deleteBtnHtml = '';
     const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
     if (isModerator) {
-      deleteBtnHtml = `<button class="btn-delete-review" onclick="deleteReviewFromFeed('${r.id}')" style="background: transparent; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.7rem; padding: 1px 4px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);" onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.05)'">🗑️ Delete</button>`;
+      deleteBtnHtml = `<button class="btn-delete-review" onclick="deleteReviewFromFeed('${r.id}')" style="background: transparent; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.7rem; padding: 1px 4px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);" onmouseenter="this.style.background='rgba(239, 68, 68, 0.15)'" onmouseleave="this.style.background='rgba(239, 68, 68, 0.05)'">🗑️ Delete</button>`;
     }
 
     cardContainer.innerHTML = `

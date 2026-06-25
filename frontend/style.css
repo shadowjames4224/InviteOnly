@@ -177,8 +177,8 @@ header {
 /* Cards */
 .card {
   background: var(--bg-card);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* backdrop-filter: blur(8px); removed to fix Chrome strobe */
+  /* -webkit-backdrop-filter: blur(8px); */
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.75rem;
