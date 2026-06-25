@@ -64,7 +64,11 @@ body {
 header {
   background: rgba(10, 10, 12, 0.7);
   backdrop-filter: blur(12px);
+  transform: translateZ(0);
+  will-change: transform;
   -webkit-backdrop-filter: blur(12px);
+  transform: translateZ(0);
+  will-change: transform;
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
@@ -178,7 +182,9 @@ header {
 .card {
   background: var(--bg-card);
   /* backdrop-filter: blur(8px); removed to fix Chrome strobe */
-  /* -webkit-backdrop-filter: blur(8px); */
+  /* -webkit-backdrop-filter: blur(8px);
+  transform: translateZ(0);
+  will-change: transform; */
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.75rem;
@@ -464,7 +470,7 @@ header {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .btn:active {
@@ -756,6 +762,8 @@ header {
   align-items: center;
   background: rgba(10, 10, 12, 0.6);
   backdrop-filter: blur(1px);
+  transform: translateZ(0);
+  will-change: transform;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: opacity var(--transition-fast);
@@ -1894,7 +1902,11 @@ footer {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(12px);
+  transform: translateZ(0);
+  will-change: transform;
   -webkit-backdrop-filter: blur(12px);
+  transform: translateZ(0);
+  will-change: transform;
   position: relative;
   overflow: hidden;
 }
@@ -2217,6 +2229,8 @@ footer {
   flex-direction: column;
   overflow: hidden;
   backdrop-filter: blur(16px);
+  transform: translateZ(0);
+  will-change: transform;
   transition: opacity 0.3s, transform 0.3s;
   transform-origin: bottom right;
 }
@@ -2747,6 +2761,8 @@ footer {
   background: rgba(10, 10, 15, 0.75);
   border-right: 1px solid var(--border-color);
   backdrop-filter: blur(20px);
+  transform: translateZ(0);
+  will-change: transform;
   display: flex;
   flex-direction: column;
   padding: 2.25rem 1.5rem;
@@ -2898,7 +2914,11 @@ footer {
     padding: 1rem 1.25rem 0.5rem 1.25rem;
     background: rgba(10, 10, 15, 0.95);
     backdrop-filter: blur(25px);
+  transform: translateZ(0);
+  will-change: transform;
     -webkit-backdrop-filter: blur(25px);
+  transform: translateZ(0);
+  will-change: transform;
     box-sizing: border-box;
     z-index: 1000;
   }
