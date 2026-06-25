@@ -316,6 +316,9 @@ async function syncLiveProfiles() {
             localP.released_by = liveP.released_by;
             localP.originally_invited_by = liveP.originally_invited_by;
             localP.role = liveP.role;
+            if (liveP.demographic_group) {
+              localP.demographic_group = liveP.demographic_group;
+            }
           } else {
             db.profiles.push({
               id: liveP.id,
@@ -327,7 +330,8 @@ async function syncLiveProfiles() {
               access_key: 'key_' + liveP.username,
               released_by: liveP.released_by,
               originally_invited_by: liveP.originally_invited_by,
-              role: liveP.role
+              role: liveP.role,
+              demographic_group: liveP.demographic_group || 'urban_affluent'
             });
           }
         });
@@ -1472,7 +1476,8 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
       body: JSON.stringify({
         inviteToken: tokenInput,
         username: usernameInput,
-        password: accessKey
+        password: accessKey,
+        demographicGroup: document.getElementById('profile-reg-demographic')?.value || 'urban_affluent'
       })
     });
 
@@ -1498,7 +1503,8 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
       base_reputation: 1.0000,
       invited_by: (result.profile && result.profile.invited_by) || (tokenObj ? tokenObj.inviter_id : null),
       is_active: true,
-      access_key: accessKey
+      access_key: accessKey,
+      demographic_group: document.getElementById('profile-reg-demographic')?.value || 'urban_affluent'
     });
 
     saveDbState();
@@ -3259,7 +3265,8 @@ document.getElementById('btn-admin-create-user')?.addEventListener('click', asyn
     base_reputation: baseRep,
     invited_by: parentProfile.id,
     is_active: true,
-    access_key: accessKey
+    access_key: accessKey,
+    demographic_group: document.getElementById('select-admin-create-demographic')?.value || 'urban_affluent'
   };
 
   // Sync direct profile creation to Supabase
@@ -3269,7 +3276,8 @@ document.getElementById('btn-admin-create-user')?.addEventListener('click', asyn
     reputation_score: baseRep,
     invited_by: parentProfile.id,
     is_active: true,
-    access_key: accessKey
+    access_key: accessKey,
+    demographic_group: newProfile.demographic_group
   });
 
   const snapshot = getDbProfilesSnapshot();

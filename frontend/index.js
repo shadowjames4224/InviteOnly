@@ -337,6 +337,9 @@ async function syncLiveProfiles() {
             localP.role = liveP.role;
             localP.released_by = liveP.released_by;
             localP.originally_invited_by = liveP.originally_invited_by;
+            if (liveP.demographic_group) {
+              localP.demographic_group = liveP.demographic_group;
+            }
           } else {
             db.profiles.push({
               id: liveP.id,
@@ -348,7 +351,8 @@ async function syncLiveProfiles() {
               access_key: 'key_' + liveP.username,
               role: liveP.role,
               released_by: liveP.released_by,
-              originally_invited_by: liveP.originally_invited_by
+              originally_invited_by: liveP.originally_invited_by,
+              demographic_group: liveP.demographic_group || 'urban_affluent'
             });
           }
         });
@@ -526,6 +530,65 @@ function syncCurrentUser() {
               alert("An error occurred updating username: " + err.message);
             }
           });
+          // Demographic cohort update handler
+          const demographicSelect = document.getElementById('settings-demographic-select');
+          const demographicBtn = document.getElementById('btn-settings-update-demographic');
+          const demographicStatus = document.getElementById('demographic-update-status');
+
+          if (demographicSelect && currentUser) {
+            // Pre-select current user's cohort
+            demographicSelect.value = currentUser.demographic_group || 'urban_affluent';
+
+            if (demographicBtn) {
+              // Clone to avoid stacking duplicate listeners across calls
+              const newDemographicBtn = demographicBtn.cloneNode(true);
+              demographicBtn.parentNode.replaceChild(newDemographicBtn, demographicBtn);
+
+              newDemographicBtn.addEventListener('click', async () => {
+                const newGroup = demographicSelect.value;
+                if (demographicStatus) {
+                  demographicStatus.innerText = 'Updating...';
+                  demographicStatus.className = 'signup-status-message info';
+                  demographicStatus.classList.remove('hidden');
+                }
+
+                try {
+                  const res = await fetch('https://api.inviteonlyreviews.com/api/profile/update-demographic', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      authKey: sessionStorage.getItem('current_user_key'),
+                      demographicGroup: newGroup
+                    })
+                  });
+
+                  const data = await res.json();
+                  if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to update demographic cohort.');
+                  }
+
+                  // Update local state
+                  const profile = db.profiles.find(p => p.id === currentUser.id);
+                  if (profile) {
+                    profile.demographic_group = newGroup;
+                    currentUser.demographic_group = newGroup;
+                  }
+                  saveDbState();
+
+                  if (demographicStatus) {
+                    const label = newGroup === 'urban_affluent' ? 'Urban / High Density' : 'Rural / Low Density';
+                    demographicStatus.innerText = `✓ Cohort updated to: ${label}`;
+                    demographicStatus.className = 'signup-status-message success';
+                  }
+                } catch (err) {
+                  if (demographicStatus) {
+                    demographicStatus.innerText = 'Error: ' + err.message;
+                    demographicStatus.className = 'signup-status-message error';
+                  }
+                }
+              });
+            }
+          }
         }
       }
       return;
@@ -1119,7 +1182,7 @@ function renderSelectedUserDetails(userId) {
       </div>
       <div class="user-meta-item">
         <span class="user-meta-label" style="font-size: 0.72rem; color: var(--color-text-dim); text-transform: uppercase;">Demographic Cohort</span>
-        <span class="user-meta-value" style="font-size: 0.95rem; font-weight: 500;">${profile.demographic_group || 'N/A'}</span>
+        <span class="user-meta-value" style="font-size: 0.95rem; font-weight: 500;">${profile.demographic_group === 'remote_rural' ? 'Rural / Low Density' : 'Urban / High Density'}</span>
       </div>
     </div>
   `;

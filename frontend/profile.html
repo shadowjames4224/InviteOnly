@@ -107,6 +107,13 @@
         <label for="profile-reg-username" style="font-size: 0.75rem;">Select Public Username</label>
         <input type="text" id="profile-reg-username" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; font-size: 0.85rem;" placeholder="3-15 chars, alphanumeric">
       </div>
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label for="profile-reg-demographic" style="font-size: 0.75rem;">Demographic Cohort</label>
+        <select id="profile-reg-demographic" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; font-size: 0.85rem;">
+          <option value="urban_affluent">Urban / High Density</option>
+          <option value="remote_rural">Rural / Low Density</option>
+        </select>
+      </div>
       <button type="button" class="btn btn-primary btn-full" id="btn-profile-signup">Register & Automatically Log In</button>
       <div class="signup-status-message error hidden" style="margin-top: 0.75rem;" id="profile-signup-msg"></div>
     </div>
@@ -344,6 +351,13 @@
               <div class="form-group" style="margin-bottom: 0;">
                 <label for="input-admin-create-key-suffix" style="font-size: 0.75rem; color: #a1a1aa; display: block; margin-bottom: 0.25rem;">Key Suffix (Optional)</label>
                 <input type="text" id="input-admin-create-key-suffix" placeholder="e.g. mysecretkey" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="select-admin-create-demographic" style="font-size: 0.75rem; color: #a1a1aa; display: block; margin-bottom: 0.25rem;">Demographic Cohort</label>
+                <select id="select-admin-create-demographic" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+                  <option value="urban_affluent">Urban / High Density</option>
+                  <option value="remote_rural">Rural / Low Density</option>
+                </select>
               </div>
             </div>
             

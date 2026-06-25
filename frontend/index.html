@@ -398,7 +398,21 @@
 
 
           </div>
+
+          <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; color: #a1a1aa; font-family: var(--font-heading);">Demographic Cohort (IPW Filter)</h4>
+            <p style="font-size: 0.75rem; color: var(--color-text-dim); margin-bottom: 0.75rem;">Your cohort is used in the Causal IPW bias correction algorithm when enabled. This reflects your population density context.</p>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <select id="settings-demographic-select" class="select-field" style="flex: 1; padding: 0.5rem; font-size: 0.85rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: white;">
+                <option value="urban_affluent">Urban / High Density</option>
+                <option value="remote_rural">Rural / Low Density</option>
+              </select>
+              <button type="button" class="btn btn-primary" id="btn-settings-update-demographic" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: var(--radius-sm);">Update</button>
+            </div>
+            <div id="demographic-update-status" class="signup-status-message hidden" style="margin-top: 0.5rem; font-size: 0.8rem;"></div>
+          </div>
         </div>
+
 
       </div>
     </section>

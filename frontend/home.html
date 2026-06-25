@@ -193,7 +193,11 @@
         <div class="form-group-row">
           <input type="text" placeholder="Invite token (e.g., tkn_xxxx)" id="home-token-input">
           <input type="text" placeholder="Username" id="home-username-input">
-          <button class="btn btn-primary" id="btn-home-signup">Verify Token & Signup</button>
+          <select id="home-demographic-select" style="padding: 0.6rem 0.75rem; background: rgba(0,0,0,0.35); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: white; font-size: 0.85rem; cursor: pointer;">
+            <option value="urban_affluent">Urban / High Density</option>
+            <option value="remote_rural">Rural / Low Density</option>
+          </select>
+          <button class="btn btn-primary" id="btn-home-signup">Verify Token &amp; Signup</button>
         </div>
         <div class="signup-status-message hidden" id="signup-status-msg"></div>
         <div class="hidden" id="redirect-tip"></div>
@@ -761,6 +765,9 @@
                 localP.reputation_score = parseFloat(liveP.reputation_score);
                 localP.invited_by = liveP.invited_by;
                 localP.is_active = liveP.is_active;
+                if (liveP.demographic_group) {
+                  localP.demographic_group = liveP.demographic_group;
+                }
               } else {
                 db.profiles.push({
                   id: liveP.id,
@@ -770,7 +777,7 @@
                   invited_by: liveP.invited_by,
                   is_active: liveP.is_active,
                   access_key: 'key_' + liveP.username,
-                  demographic_group: 'urban_affluent'
+                  demographic_group: liveP.demographic_group || 'urban_affluent'
                 });
               }
             });
@@ -850,7 +857,8 @@
           body: JSON.stringify({
             inviteToken: token,
             username: username,
-            password: 'password123'
+            password: 'password123',
+            demographicGroup: document.getElementById('home-demographic-select').value
           })
         });
 
@@ -896,7 +904,7 @@
           invited_by: (result.profile && result.profile.invited_by) || (tokenObj ? tokenObj.inviter_id : null),
           is_active: true,
           access_key: accessKey,
-          demographic_group: 'urban_affluent'
+          demographic_group: document.getElementById('home-demographic-select').value
         });
 
         saveDbState();
