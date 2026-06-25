@@ -963,6 +963,14 @@
       }
     });
 
+    // Hide Portal Feed link if guest
+    const sessionKey = sessionStorage.getItem('current_user_key');
+    const userExists = sessionKey ? db.profiles.find(p => p.access_key === sessionKey && p.is_active) : null;
+    if (!sessionKey || !userExists) {
+      const portalLink = document.querySelector('.nav-actions a[href="index.html"]');
+      if (portalLink) portalLink.classList.add('hidden');
+    }
+
     // Initial render
     renderExplorerFeed();
   </script>

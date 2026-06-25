@@ -168,7 +168,7 @@ export default {
         }
 
         // Query Supabase for the requester profile
-        const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active`, {
+        const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by`, {
           method: 'GET',
           headers: {
             'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -204,7 +204,7 @@ export default {
             });
           }
 
-          const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${inviterUsername}&select=id,username,is_active`, {
+          const targetRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${inviterUsername}&select=id,username,is_active,invited_by`, {
             method: 'GET',
             headers: {
               'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -222,9 +222,9 @@ export default {
           targetProfile = targets[0];
         }
 
-        // Enforce 5-invite quota for non-root target inviter
-        const isTargetRoot = targetProfile.id === '00000000-0000-0000-0000-000000000001';
-        if (!isTargetRoot) {
+        // Enforce 5-invite quota for non-moderator target inviter
+        const isTargetMod = targetProfile.id === '00000000-0000-0000-0000-000000000001' || targetProfile.invited_by === '00000000-0000-0000-0000-000000000001';
+        if (!isTargetMod) {
           const countRes = await fetch(`${env.SUPABASE_URL}/rest/v1/invite_tokens?inviter_id=eq.${targetProfile.id}&is_used=eq.false`, {
             method: 'GET',
             headers: {

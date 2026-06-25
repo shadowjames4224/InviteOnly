@@ -518,6 +518,16 @@ function showLoginGate() {
   // Hide Dev Sandbox links for guests
   const sandboxLinks = document.querySelectorAll('a[href="sandbox.html"]');
   sandboxLinks.forEach(link => link.classList.add('hidden'));
+
+  // Hide authenticated menu options from guest sidebar
+  const authLinks = document.querySelectorAll('.sidebar-nav a[href^="index.html"]');
+  authLinks.forEach(link => link.classList.add('hidden'));
+
+  // Update status footer
+  const userDot = document.querySelector('.user-status-dot');
+  const userLabel = document.querySelector('.username-display');
+  if (userDot) userDot.className = 'user-status-dot offline';
+  if (userLabel) userLabel.innerText = 'Guest';
 }
 
 function showDashboard() {
@@ -550,6 +560,16 @@ function showDashboard() {
       adminPanel.classList.add('hidden');
     }
   }
+
+  // Show authenticated menu options
+  const authLinks = document.querySelectorAll('.sidebar-nav a[href^="index.html"]');
+  authLinks.forEach(link => link.classList.remove('hidden'));
+
+  // Update status footer
+  const userDot = document.querySelector('.user-status-dot');
+  const userLabel = document.querySelector('.username-display');
+  if (userDot) userDot.className = 'user-status-dot online';
+  if (userLabel) userLabel.innerText = '@' + currentUser.username;
 }
 
 function renderProfileCard() {
@@ -582,26 +602,39 @@ function renderProfileCard() {
 }
 
 function renderInviteHub() {
+  const isMod = currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001';
   const myPendingTokens = db.invite_tokens.filter(t => t.inviter_id === currentUser.id && !t.is_used);
   const totalGenerated = db.invite_tokens.filter(t => t.inviter_id === currentUser.id).length;
-  const remaining = Math.max(0, 5 - totalGenerated);
 
   const invitesLeftEl = document.getElementById('invites-left');
   if (invitesLeftEl) {
-    invitesLeftEl.innerText = `${remaining} Left`;
-    invitesLeftEl.className = remaining > 0 ? 'badge privacy-badge' : 'badge count-badge';
+    if (isMod) {
+      invitesLeftEl.innerText = `Unlimited`;
+      invitesLeftEl.className = 'badge privacy-badge';
+    } else {
+      const remaining = Math.max(0, 5 - totalGenerated);
+      invitesLeftEl.innerText = `${remaining} Left`;
+      invitesLeftEl.className = remaining > 0 ? 'badge privacy-badge' : 'badge count-badge';
+    }
   }
 
   const btnGen = document.getElementById('btn-generate-profile-token');
   if (btnGen) {
-    if (remaining === 0) {
-      btnGen.disabled = true;
-      btnGen.innerText = 'Invite Quota Reached (' + totalGenerated + '/5)';
-      btnGen.className = 'btn btn-secondary btn-full';
-    } else {
+    if (isMod) {
       btnGen.disabled = false;
       btnGen.innerText = 'Generate Invite Token';
       btnGen.className = 'btn btn-primary btn-full';
+    } else {
+      const remaining = Math.max(0, 5 - totalGenerated);
+      if (remaining === 0) {
+        btnGen.disabled = true;
+        btnGen.innerText = 'Invite Quota Reached (' + totalGenerated + '/5)';
+        btnGen.className = 'btn btn-secondary btn-full';
+      } else {
+        btnGen.disabled = false;
+        btnGen.innerText = 'Generate Invite Token';
+        btnGen.className = 'btn btn-primary btn-full';
+      }
     }
   }
 
@@ -1255,11 +1288,13 @@ window.quickLogin = function(key) {
 
 // Generate invite token
 document.getElementById('btn-generate-profile-token')?.addEventListener('click', async () => {
-  const myTokens = db.invite_tokens.filter(t => t.inviter_id === currentUser.id);
-  // Enforce quota only if not root moderator
-  if (myTokens.length >= 5 && currentUser.id !== '00000000-0000-0000-0000-000000000001') {
-    alert("Quota reached: You cannot generate more than 5 invite tokens.");
-    return;
+  const isMod = currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001';
+  if (!isMod) {
+    const myTokens = db.invite_tokens.filter(t => t.inviter_id === currentUser.id);
+    if (myTokens.length >= 5) {
+      alert("Quota reached: You cannot generate more than 5 invite tokens.");
+      return;
+    }
   }
 
   const rawToken = 'tkn_' + Math.random().toString(36).substr(2, 16);
@@ -1937,6 +1972,17 @@ function initAdminPanel() {
     display.innerText = alphaVal.toFixed(2);
   }
   
+  // Hide System Invite generator for standard moderators (only root moderator is authorized)
+  const isRoot = currentUser.id === '00000000-0000-0000-0000-000000000001';
+  const systemInviteSection = document.getElementById('admin-system-invite-section');
+  if (systemInviteSection) {
+    if (isRoot) {
+      systemInviteSection.classList.remove('hidden');
+    } else {
+      systemInviteSection.classList.add('hidden');
+    }
+  }
+
   populateAdminInviterDropdown();
   populateAdminManageUserDropdown();
   renderAdminInviteGraph();
@@ -2377,7 +2423,8 @@ document.getElementById('btn-admin-create-behalf-invite')?.addEventListener('cli
   if (!profile || !profile.is_active) return;
 
   const myTokens = db.invite_tokens.filter(t => t.inviter_id === profile.id);
-  if (myTokens.length >= 5 && profile.id !== '00000000-0000-0000-0000-000000000001') {
+  const isTargetMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+  if (myTokens.length >= 5 && !isTargetMod) {
     alert(`Quota reached: @${profile.username} cannot generate more than 5 invite tokens.`);
     return;
   }

@@ -45,7 +45,10 @@
 
       <!-- User status shortcut anchored at bottom -->
       <div class="sidebar-footer">
-        <!-- Will show profile link / status -->
+        <div class="user-badge-shortcut" id="header-user-status" style="cursor: default;">
+          <span class="user-status-dot offline"></span>
+          <span class="username-display">Guest</span>
+        </div>
       </div>
     </aside>
 
@@ -331,7 +334,7 @@
             </div>
 
             <!-- Generate System/Moderator Invite -->
-            <div>
+            <div id="admin-system-invite-section">
               <h3 style="font-size: 0.95rem; margin-bottom: 0.25rem; font-family: var(--font-heading); color: var(--color-text-main);">System Invites</h3>
               <p style="font-size: 0.82rem; color: #a1a1aa; margin-bottom: 0.75rem;">Generate a root-level "moderator" invite token (inviter is root admin).</p>
               <button class="btn btn-primary btn-full" id="btn-admin-create-system-invite">
