@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InviteOnly - Community-Governed Review Network</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="home-body">
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <div class="logo">
+        <span class="logo-icon">✦</span>
+        <h1>InviteOnly <span class="logo-sub">Network</span></h1>
+      </div>
+      <div class="nav-actions">
+        <a href="home.html" class="nav-link-btn active">
+          <span class="btn-icon">🏠</span> Landing Page
+        </a>
+        <a href="index.html" class="nav-link-btn">
+          <span class="btn-icon">🌐</span> Portal Feed
+        </a>
+        <a href="profile.html" class="nav-link-btn">
+          <span class="btn-icon">👤</span> My Profile
+        </a>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-container">
+      <span class="hero-pretitle">Community-governed review network</span>
+      <h2 class="hero-title">Decentralized, <br><span class="gradient-text">Privacy-First Reviews.</span></h2>
+      <p class="hero-desc">Review locations, goods, and services privately. Visibility is governed by community consensus with no central ads.</p>
+      <div class="hero-ctas">
+        <a href="#invite-section" class="btn btn-primary">Redeem Invite Token</a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Active Review Explorer -->
+  <section class="explorer-section" id="explorer-section">
+    <div class="section-header-center">
+      <h2>Search Verifiable Reviews</h2>
+      <p>Browse reviews, coordinates, and verified telemetry details.</p>
+    </div>
+
+    <!-- Search Filters -->
+    <div class="explorer-filters-card">
+      <div class="search-box-row">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="explorer-search-input" placeholder="Search by merchant, category, or review content (e.g. 'Epoch', 'parking', 'microchips')...">
+      </div>
+      <div class="filter-controls-row">
+        <div class="poe-filter-checkbox">
+          <input type="checkbox" id="chk-explorer-poe-only" class="checkbox-field">
+          <label for="chk-explorer-poe-only">Only PoE Verified</label>
+        </div>
+        <div class="poe-filter-checkbox" style="margin-left: 1rem;">
+          <input type="checkbox" id="chk-explorer-causal-ipw" class="checkbox-field">
+          <label for="chk-explorer-causal-ipw">Causal Bias Correction (IPW)</label>
+        </div>
+        <div class="consensus-filter-dropdown">
+          <label for="select-explorer-consensus">Consensus:</label>
+          <select id="select-explorer-consensus" class="select-field">
+            <option value="all">All Feedback</option>
+            <option value="trusted">High Trust (θ ≥ 0.70)</option>
+            <option value="disputed">Under Active Dispute (θ < 0.70)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Feed -->
+    <div class="explorer-results-feed" id="explorer-results-feed">
+      <!-- Populated dynamically via script -->
+    </div>
+  </section>
+
+  <!-- Core Invariants Grid -->
+  <section class="features-section">
+    <div class="section-header-center">
+      <h2>Core Principles</h2>
+      <p>Built directly into the platform code.</p>
+    </div>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Community Moderation</h3>
+        <p>Visibility is determined by community vouch vs dispute ratios, not central admins.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⛓️</div>
+        <h3>Invite-Only Access</h3>
+        <p>Access is invite-gated. Low-trust accounts are isolated to protect downstream reputation.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">👁️‍🗨️</div>
+        <h3>Local Verification</h3>
+        <p>Verify location or purchases using local calculations, keeping your data private.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📁</div>
+        <h3>Organized Directory</h3>
+        <p>Easily browse and review states, cities, locations, and specific items.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Governance Charter Accordion -->
+  <section class="governance-section">
+    <div class="governance-container">
+      <div class="governance-info">
+        <span class="badge privacy-badge">Community Charter</span>
+        <h2>Trust Consensus Visibility</h2>
+        <p>Vouch and dispute votes dynamically adjust review visibility, keeping the network clean without central admins.</p>
+        
+        <div class="charter-rule">
+          <div class="rule-math">\(\theta \ge 0.70\)</div>
+          <div class="rule-desc">
+            <strong>High Trust:</strong> Fully visible reviews supported by community votes.
+          </div>
+        </div>
+
+        <div class="charter-rule">
+          <div class="rule-math">\(0.40 \le \theta < 0.70\)</div>
+          <div class="rule-desc">
+            <strong>Disputed:</strong> Reviews with active disputes fade to 50% opacity.
+          </div>
+        </div>
+
+        <div class="charter-rule">
+          <div class="rule-math">\(\theta < 0.40\)</div>
+          <div class="rule-desc">
+            <strong>Hidden:</strong> Highly disputed reviews are collapsed and blurred.
+          </div>
+        </div>
+      </div>
+      
+      <!-- Simulated Interactive Review Card -->
+      <div class="governance-preview-card">
+        <div class="card-glow"></div>
+        <div class="preview-card-header">
+          <span>Demonstration Review</span>
+          <span class="preview-ratio">θ = 0.35</span>
+        </div>
+        <div class="preview-card-content disputed-heavy-mock">
+          <p>SPAM REVIEW: The coffee here is made of microchips and government tracking fluid! DO NOT DRINK!!!</p>
+        </div>
+        <div class="preview-overlay-mock">
+          <span>⛔ Heavily Disputed Content (Click to Reveal)</span>
+        </div>
+        <div class="preview-card-footer">
+          <span class="small-text">Visual filter is applied dynamically in database query views.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Active Nodes -->
+  <section class="featured-nodes-section">
+    <div class="section-header-center">
+      <h2>Explore Verified Establishments</h2>
+      <p>Browse some featured taxonomic leaf nodes currently being moderated by active network lineages.</p>
+    </div>
+
+    <div class="nodes-grid">
+      <div class="node-card">
+        <span class="node-icon-bg">🏪</span>
+        <h3>Epoch Coffee</h3>
+        <p class="node-path">earth / us / texas / austin / coffee_shops / epoch_coffee</p>
+        <div class="node-stats">
+          <span>👍 2 Vouches</span>
+          <span class="verified-indicator">✓ PoE Verified</span>
+        </div>
+
+      </div>
+
+      <div class="node-card">
+        <span class="node-icon-bg">🏪</span>
+        <h3>Radio Coffee & Beer</h3>
+        <p class="node-path">earth / us / texas / austin / coffee_shops / radio_coffee_beer</p>
+        <div class="node-stats">
+          <span>👍 0 Vouches</span>
+          <span>Pending verification</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Invite Gated Signup Anchor Section -->
+  <section class="invite-section" id="invite-section">
+    <div class="invite-container">
+      <h2>Redeem Invitation</h2>
+      <p>Enter an invite token below to register your profile.</p>
+      
+      <div class="invite-form-card">
+        <div class="form-group-row">
+          <input type="text" placeholder="Invite token (e.g., tkn_xxxx)" id="home-token-input">
+          <input type="text" placeholder="Username" id="home-username-input">
+          <button class="btn btn-primary" id="btn-home-signup">Verify Token & Signup</button>
+        </div>
+        <div class="signup-status-message hidden" id="signup-status-msg"></div>
+        <div class="hidden" id="redirect-tip"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-container">
+      <p>InviteOnly Review Network © 2026. Zero Tracker Policy. Cryptographically secured.</p>
+      <div class="footer-links">
+
+        <a href="../database/migrations/01_schema.sql" target="_blank" class="doc-link">SQL Schema</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Simple page script to handle redirect, search parsing, and simulation links -->
+  <script>
+    // 1. Live database state loaded from localStorage
+    let db;
+    let homeRevealedReviews = new Set();
+    let enableCausalIpw = false;
+
+    function getSeedData() {
+      return {
+        version: 2,
+        profiles: [
+          { id: '00000000-0000-0000-0000-000000000001', username: 'root_moderator', reputation_score: 1.0000, base_reputation: 1.0000, invited_by: null, is_active: true, access_key: 'key_root_moderator', demographic_group: 'urban_affluent' }
+        ],
+        global_entities: [
+          { id: 'ge_macchiato', name: 'Iced Caramel Macchiato', category: 'Commercial Service', reference_specification_uri: 'https://specs.inviteonly.network/macchiato' },
+          { id: 'ge_gpu_x', name: 'Silicon Core GPU-X', category: 'Physical Consumer Good', reference_specification_uri: 'https://specs.inviteonly.network/gpu_x' },
+          { id: 'ge_fishing_pool', name: 'Silver Creek Fly Fishing Pool', category: 'Recreational Outdoor Asset', reference_specification_uri: 'https://specs.inviteonly.network/fishing_pool' }
+        ],
+        parameterized_archetypes: [
+          { id: 'pa_macchiato_layered', parent_entity_id: 'ge_macchiato', archetype_name: 'Layered Espresso-Milk (Traditional)' },
+          { id: 'pa_macchiato_blended', parent_entity_id: 'ge_macchiato', archetype_name: 'Blended/Mixed (Modern)' },
+          { id: 'pa_gpu_x_low_volt', parent_entity_id: 'ge_gpu_x', archetype_name: 'Sub-1.2V Stable Clock Profile' },
+          { id: 'pa_fishing_pool_autumn', parent_entity_id: 'ge_fishing_pool', archetype_name: 'Seasonal Autumn Dry-Fly Runoff' }
+        ],
+        execution_instances: [
+          { id: 'ei_macchiato_402', global_entity_id: 'ge_macchiato', current_archetype_id: 'pa_macchiato_layered', location_name: 'Franchise Location #402 (SF)', address: '402 Market St, San Francisco, CA', coordinates: '37.7915° N, 122.3995° W', gps_dop: 1.2 },
+          { id: 'ei_macchiato_705', global_entity_id: 'ge_macchiato', current_archetype_id: 'pa_macchiato_layered', location_name: 'Franchise Location #705 (Portland)', address: '705 Morrison St, Portland, OR', coordinates: '45.5190° N, 122.6792° W', gps_dop: 1.4 },
+          { id: 'ei_gpu_x_12', global_entity_id: 'ge_gpu_x', current_archetype_id: 'pa_gpu_x_low_volt', location_name: 'Foundry Fab #12 (Phoenix, AZ)', address: 'Foundry Fab 12, Phoenix, AZ', coordinates: '33.4484° N, 112.0740° W', gps_dop: 1.0 },
+          { id: 'ei_fishing_pool_idaho', global_entity_id: 'ge_fishing_pool', current_archetype_id: 'pa_fishing_pool_autumn', location_name: 'Silver Creek Pool (Idaho BLM)', address: 'Silver Creek Road, Picabo, ID', coordinates: '43.3275° N, 114.1685° W', gps_dop: 1.1 }
+        ],
+        nodes: [
+          { id: 1, parent_id: null, name: 'Earth', slug: 'earth', node_type: 'planet', path: '1' },
+          { id: 2, parent_id: 1, name: 'United States', slug: 'united_states', node_type: 'country', path: '1.2' },
+          { id: 3, parent_id: 2, name: 'Texas', slug: 'texas', node_type: 'state', path: '1.2.3' },
+          { id: 4, parent_id: 3, name: 'Austin', slug: 'austin', node_type: 'city', path: '1.2.3.4' },
+          { id: 5, parent_id: 4, name: 'Coffee Shops', slug: 'coffee_shops', node_type: 'category', path: '1.2.3.4.5' },
+          { id: 6, parent_id: 5, name: 'Epoch Coffee', slug: 'epoch_coffee', node_type: 'merchant', path: '1.2.3.4.5.6' },
+          { id: 7, parent_id: 5, name: 'Radio Coffee & Beer', slug: 'radio_coffee_beer', node_type: 'merchant', path: '1.2.3.4.5.7' },
+          { id: 8, parent_id: 6, name: 'Cold Brew Coffee', slug: 'cold_brew_coffee', node_type: 'item', path: '1.2.3.4.5.6.8' },
+          
+          { id: 9, parent_id: 2, name: 'California', slug: 'california', node_type: 'state', path: '1.2.9' },
+          { id: 10, parent_id: 9, name: 'San Francisco', slug: 'san_francisco', node_type: 'city', path: '1.2.9.10' },
+          { id: 11, parent_id: 10, name: 'Franchise Location #402', slug: 'franchise_402', node_type: 'execution_instance', path: '1.2.9.10.11', execution_instance_id: 'ei_macchiato_402' },
+          { id: 12, parent_id: 2, name: 'Oregon', slug: 'oregon', node_type: 'state', path: '1.2.12' },
+          { id: 13, parent_id: 12, name: 'Portland', slug: 'portland', node_type: 'city', path: '1.2.12.13' },
+          { id: 14, parent_id: 13, name: 'Franchise Location #705', slug: 'franchise_705', node_type: 'execution_instance', path: '1.2.12.13.14', execution_instance_id: 'ei_macchiato_705' },
+          { id: 15, parent_id: 2, name: 'Arizona', slug: 'arizona', node_type: 'state', path: '1.2.15' },
+          { id: 16, parent_id: 15, name: 'Phoenix', slug: 'phoenix', node_type: 'city', path: '1.2.15.16' },
+          { id: 17, parent_id: 16, name: 'Foundry Fab #12', slug: 'foundry_12', node_type: 'execution_instance', path: '1.2.15.16.17', execution_instance_id: 'ei_gpu_x_12' },
+          { id: 18, parent_id: 2, name: 'Idaho', slug: 'idaho', node_type: 'state', path: '1.2.18' },
+          { id: 19, parent_id: 18, name: 'Picabo', slug: 'picabo', node_type: 'city', path: '1.2.18.19' },
+          { id: 20, parent_id: 19, name: 'Silver Creek Fishing Pool', slug: 'silver_creek_pool', node_type: 'execution_instance', path: '1.2.18.19.20', execution_instance_id: 'ei_fishing_pool_idaho' }
+        ],
+        invite_tokens: [],
+        reviews: [],
+        vouches_disputes: []
+      };
+    }
+
+    function loadDb() {
+      const storedDb = localStorage.getItem('review_network_db');
+      let parsed = null;
+      if (storedDb) {
+        try {
+          parsed = JSON.parse(storedDb);
+        } catch (e) {
+          parsed = null;
+        }
+      }
+
+      // Force-wipe check if version is not 2
+      if (parsed && parsed.version !== 2) {
+        parsed = null;
+        localStorage.removeItem('review_network_db');
+      }
+
+      const seed = getSeedData();
+      if (!parsed || !parsed.profiles || !parsed.nodes || !parsed.invite_tokens || !parsed.reviews || !parsed.vouches_disputes || !parsed.global_entities || !parsed.parameterized_archetypes || !parsed.execution_instances) {
+        db = seed;
+        localStorage.setItem('review_network_db', JSON.stringify(db));
+      } else {
+        db = parsed;
+        let migrated = false;
+        db.profiles.forEach(p => {
+          if (!p.access_key) {
+            p.access_key = 'key_' + p.username;
+            migrated = true;
+          }
+          if (!p.demographic_group) {
+            p.demographic_group = p.username.includes('bob') || p.username.includes('charlie') ? 'remote_rural' : 'urban_affluent';
+            migrated = true;
+          }
+        });
+        seed.invite_tokens.forEach(st => {
+          if (!st.inviter_id && !db.invite_tokens.some(t => t.rawToken === st.rawToken)) {
+            db.invite_tokens.push(st);
+            migrated = true;
+          }
+        });
+        if (!db.global_entities) {
+          db.global_entities = seed.global_entities;
+          migrated = true;
+        }
+        if (!db.parameterized_archetypes) {
+          db.parameterized_archetypes = seed.parameterized_archetypes;
+          migrated = true;
+        }
+        if (!db.execution_instances) {
+          db.execution_instances = seed.execution_instances;
+          migrated = true;
+        }
+        if (migrated) {
+          localStorage.setItem('review_network_db', JSON.stringify(db));
+        }
+      }
+      const wasChanged = checkSuspensions();
+      computeReputationDecay();
+      if (wasChanged) {
+        saveDbState();
+      }
+      // Sync live profiles from Cloudflare Worker
+      syncLiveProfiles();
+    }
+
+    function checkSuspensions() {
+      if (!db || !db.profiles) return false;
+      let changed = false;
+      const now = Date.now();
+      db.profiles.forEach(p => {
+        if (!p.is_active && p.suspended_until && p.suspended_until <= now) {
+          p.is_active = true;
+          p.suspended_until = null;
+          changed = true;
+        }
+      });
+      return changed;
+    }
+
+    function areInSameInviteLineage(userIdA, userIdB) {
+      if (userIdA === userIdB) return true;
+      let pathA = [];
+      let curr = db.profiles.find(p => p.id === userIdA);
+      while (curr) {
+        pathA.push(curr.id);
+        curr = db.profiles.find(p => p.id === curr.invited_by);
+      }
+      let pathB = [];
+      curr = db.profiles.find(p => p.id === userIdB);
+      while (curr) {
+        pathB.push(curr.id);
+        curr = db.profiles.find(p => p.id === curr.invited_by);
+      }
+      return pathA.includes(userIdB) || pathB.includes(userIdA);
+    }
+
+    function calculateConsensusTheta(reviewId) {
+      let review = db.reviews.find(r => r.id === reviewId);
+      if (!review) return { theta: 1.0, wv: 0, wd: 0 };
+      let votes = db.vouches_disputes.filter(v => v.review_id === reviewId);
+      let wv = 0;
+      let wd = 0;
+
+      const activeProfiles = db.profiles.filter(p => p.is_active);
+      const highRepProfiles = activeProfiles.filter(p => p.reputation_score >= 2.0);
+      const pA1 = activeProfiles.length > 0 ? highRepProfiles.length / activeProfiles.length : 0.4;
+      const pA0 = 1.0 - pA1;
+
+      votes.forEach(vote => {
+        let voter = db.profiles.find(p => p.id === vote.user_id);
+        if (!voter || !voter.is_active) return;
+        let weight = voter.reputation_score;
+        if (areInSameInviteLineage(vote.user_id, review.author_id) && vote.user_id !== review.author_id) {
+          weight *= 0.5;
+        }
+
+        if (enableCausalIpw) {
+          const isHighExposure = voter.reputation_score >= 2.0;
+          const group = voter.demographic_group || 'urban_affluent';
+          const propensity = (group === 'urban_affluent') ? 0.75 : 0.25;
+          const ipwWeight = isHighExposure ? (pA1 / propensity) : (pA0 / (1.0 - propensity));
+          weight *= ipwWeight;
+        }
+
+        if (vote.type === 'vouch') {
+          wv += weight;
+        } else {
+          wd += weight;
+        }
+      });
+      let theta = 1.0;
+      if (wv + wd > 0) {
+        theta = wv / (wv + wd);
+      }
+      return { theta, wv, wd };
+    }
+
+    function calculateInstanceAnalytics(instanceId) {
+      if (!instanceId) return null;
+      const instance = db.execution_instances ? db.execution_instances.find(ei => ei.id === instanceId) : null;
+      if (!instance) return null;
+
+      const entity = db.global_entities ? db.global_entities.find(ge => ge.id === instance.global_entity_id) : null;
+      if (!entity) return null;
+
+      const verifiedReviews = db.reviews.filter(r => r.execution_instance_id === instanceId && r.is_verified_experience);
+      
+      if (entity.category === 'Physical Consumer Good') {
+        const thermals = verifiedReviews.map(r => r.param_val_1).filter(v => v !== null && v !== undefined);
+        if (thermals.length < 2) return { type: 'cpk', hasData: false };
+
+        const mean = thermals.reduce((a,b)=>a+b, 0) / thermals.length;
+        const variance = thermals.reduce((a,b)=>a + Math.pow(b - mean, 2), 0) / thermals.length;
+        const stdDev = Math.max(0.0001, Math.sqrt(variance));
+
+        const usl = 85.0;
+        const lsl = 60.0;
+        const cpkUpper = (usl - mean) / (3.0 * stdDev);
+        const cpkLower = (mean - lsl) / (3.0 * stdDev);
+        const cpk = Math.max(-9.99, parseFloat(Math.min(cpkUpper, cpkLower).toFixed(2)));
+
+        let rating = 'Deficient';
+        let ratingColor = '#f43f5e';
+        if (cpk > 1.66) {
+          rating = 'Exceptional';
+          ratingColor = '#10b981';
+        } else if (cpk >= 1.33) {
+          rating = 'Stable';
+          ratingColor = '#10b981';
+        } else if (cpk >= 1.00) {
+          rating = 'Marginal';
+          ratingColor = '#f59e0b';
+        }
+
+        return {
+          type: 'cpk',
+          hasData: true,
+          mean: mean.toFixed(2),
+          stdDev: stdDev.toFixed(2),
+          cpk: cpk,
+          rating: rating,
+          ratingColor: ratingColor,
+          samples: thermals.length
+        };
+      } else {
+        const vals = verifiedReviews.map(r => r.param_val_1).filter(v => v !== null && v !== undefined);
+        if (vals.length < 2) return { type: 'ci', hasData: false };
+
+        const mean = vals.reduce((a,b)=>a+b, 0) / vals.length;
+        const variance = vals.reduce((a,b)=>a + Math.pow(b - mean, 2), 0) / vals.length;
+        const stdDev = Math.max(0.0001, Math.sqrt(variance));
+
+        const cv = stdDev / mean;
+        const lineageAlpha = 0.25;
+        const ci = 1.0 - lineageAlpha * cv;
+        const ciPercentage = Math.max(0, Math.min(100, ci * 100));
+
+        let rating = 'Poor';
+        let ratingColor = '#f43f5e';
+        if (ciPercentage >= 90) {
+          rating = 'Exceptional';
+          ratingColor = '#10b981';
+        } else if (ciPercentage >= 75) {
+          rating = 'Stable';
+          ratingColor = '#10b981';
+        } else if (ciPercentage >= 50) {
+          rating = 'Marginal';
+          ratingColor = '#f59e0b';
+        }
+
+        return {
+          type: 'ci',
+          hasData: true,
+          mean: mean.toFixed(2),
+          stdDev: stdDev.toFixed(2),
+          cv: cv.toFixed(3),
+          ci: ciPercentage.toFixed(1),
+          rating: rating,
+          ratingColor: ratingColor,
+          samples: vals.length
+        };
+      }
+    }
+
+    function computeReputationDecay() {
+      db.profiles.forEach(p => {
+        if (p.is_active) {
+          p.reputation_score = p.base_reputation;
+        } else {
+          p.reputation_score = 0.0000;
+        }
+      });
+      let changed = true;
+      let iterations = 0;
+      while (changed && iterations < 10) {
+        changed = false;
+        iterations++;
+        for (let p of db.profiles) {
+          if (!p.is_active || p.reputation_score === 0) continue;
+          let children = db.profiles.filter(c => c.invited_by === p.id);
+          if (children.length === 0) continue;
+          let product = 1.0;
+          for (let child of children) {
+            let childReviews = db.reviews.filter(r => r.author_id === child.id);
+            if (childReviews.length === 0) continue;
+            let totalTheta = 0;
+            childReviews.forEach(r => {
+              let { theta } = calculateConsensusTheta(r.id);
+              totalTheta += theta;
+            });
+            let childAvgTheta = totalTheta / childReviews.length;
+            let term = 1.0 - (0.25 * (1.0 - childAvgTheta));
+            product *= Math.max(0, Math.min(1, term));
+          }
+          let newRep = parseFloat((p.base_reputation * product).toFixed(4));
+          if (Math.abs(p.reputation_score - newRep) > 0.0001) {
+            p.reputation_score = newRep;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    function getNodePathString(node) {
+      let parts = [];
+      let curr = node;
+      while (curr) {
+        parts.unshift(curr.name);
+        curr = db.nodes.find(n => n.id === curr.parent_id);
+      }
+      return parts.join(' / ');
+    }
+
+    function getExplorerReviews() {
+      return db.reviews.map(review => {
+        const node = db.nodes.find(n => n.id === review.node_id);
+        const author = db.profiles.find(p => p.id === review.author_id);
+        const { theta, wv, wd } = calculateConsensusTheta(review.id);
+        const instId = review.execution_instance_id || (node ? node.execution_instance_id : null);
+        const analytics = calculateInstanceAnalytics(instId);
+        return {
+          id: review.id,
+          merchant: node ? node.name : 'Unknown',
+          path: node ? getNodePathString(node) : '',
+          nodeType: node ? node.node_type : 'merchant',
+          address: node ? node.address : null,
+          coordinates: node ? node.coordinates : null,
+          author: author ? author.username : 'unknown',
+          authorRep: author ? author.reputation_score : 0,
+          content: review.raw_content,
+          isPoe: review.is_verified_experience,
+          theta: theta,
+          wv: wv,
+          wd: wd,
+          execution_instance_id: instId,
+          param_val_1: review.param_val_1,
+          param_val_2: review.param_val_2,
+          param_val_3: review.param_val_3,
+          verification_method: review.verification_method,
+          gps_dop: review.gps_dop,
+          analytics: analytics
+        };
+      });
+    }
+
+    // Load active DB
+    loadDb();
+
+
+
+    // 2. Render review feed based on filters
+    function renderExplorerFeed() {
+      const query = document.getElementById('explorer-search-input').value.toLowerCase().trim();
+      const poeOnly = document.getElementById('chk-explorer-poe-only').checked;
+      const consensusFilter = document.getElementById('select-explorer-consensus').value;
+      const resultsContainer = document.getElementById('explorer-results-feed');
+      resultsContainer.innerHTML = '';
+
+      const filtered = getExplorerReviews().filter(r => {
+        let paramStr = '';
+        if (r.param_val_1 !== null && r.param_val_1 !== undefined) paramStr += r.param_val_1 + ' ';
+        if (r.param_val_2 !== null && r.param_val_2 !== undefined) paramStr += r.param_val_2 + ' ';
+        if (r.param_val_3 !== null && r.param_val_3 !== undefined) paramStr += r.param_val_3 + ' ';
+        paramStr = paramStr.toLowerCase();
+
+        const matchesSearch = r.merchant.toLowerCase().includes(query) || 
+                              r.path.toLowerCase().includes(query) || 
+                              r.author.toLowerCase().includes(query) || 
+                              (r.address && r.address.toLowerCase().includes(query)) ||
+                              (r.coordinates && r.coordinates.toLowerCase().includes(query)) ||
+                              r.content.toLowerCase().includes(query) ||
+                              paramStr.includes(query);
+        
+        const matchesPoe = !poeOnly || r.isPoe;
+
+        let matchesConsensus = true;
+        if (consensusFilter === 'trusted') {
+          matchesConsensus = r.theta >= 0.70;
+        } else if (consensusFilter === 'disputed') {
+          matchesConsensus = r.theta < 0.70;
+        }
+
+        return matchesSearch && matchesPoe && matchesConsensus;
+      });
+
+      if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div class="details-placeholder" style="line-height:80px; text-align:center;">No reviews match the current query. Try searching for "Epoch", "parking", or specific hardware/location coordinates.</div>';
+        return;
+      }
+
+      filtered.forEach(r => {
+        let cardClass = 'vouch-heavy';
+        let disputeNotice = '';
+        let isCollapsed = false;
+
+        if (r.theta >= 0.70) {
+          cardClass = 'vouch-heavy';
+        } else if (r.theta >= 0.40 && r.theta < 0.70) {
+          cardClass = 'disputed-mid';
+          disputeNotice = `<div class="dispute-notice">⚠️ Disputed content - active community feedback. Opacity reduced by 50%</div>`;
+        } else {
+          cardClass = 'disputed-heavy';
+          disputeNotice = `<div class="dispute-notice-heavy">🚫 Heavily Disputed. Content collapsed & blurred. Consensus rejected.</div>`;
+          isCollapsed = !homeRevealedReviews.has(r.id);
+        }
+
+        let locHTML = '';
+        if (r.address || r.coordinates) {
+          let parts = [];
+          if (r.address) parts.push(`📍 Address: ${r.address}`);
+          if (r.coordinates) parts.push(`🌐 GPS: ${r.coordinates}`);
+          locHTML = `<div style="font-size: 0.75rem; color: var(--color-success); margin-bottom: 0.5rem; font-weight: 500;">${parts.join(' | ')}</div>`;
+        }
+
+        let parametersLine = '';
+        if (r.execution_instance_id) {
+          const inst = db.execution_instances.find(ei => ei.id === r.execution_instance_id);
+          const ge = inst ? db.global_entities.find(g => g.id === inst.global_entity_id) : null;
+          if (ge) {
+            if (ge.id === 'ge_macchiato' && r.param_val_1 !== null && r.param_val_1 !== undefined) {
+              parametersLine = `<div class="review-parameters" style="font-size:0.8rem; font-family:monospace; margin-bottom:0.5rem; color:#a1a1aa;">☕ Espresso Weight: ${r.param_val_1}g | Layering: ${r.param_val_2}</div>`;
+            } else if (ge.id === 'ge_gpu_x' && r.param_val_1 !== null && r.param_val_1 !== undefined) {
+              parametersLine = `<div class="review-parameters" style="font-size:0.8rem; font-family:monospace; margin-bottom:0.5rem; color:#a1a1aa;">🔌 Thermal: ${r.param_val_1}°C | Clock: ${r.param_val_2}GHz | Voltage: ${r.param_val_3}V</div>`;
+            } else if (ge.id === 'ge_fishing_pool' && r.param_val_1 !== null && r.param_val_1 !== undefined) {
+              parametersLine = `<div class="review-parameters" style="font-size:0.8rem; font-family:monospace; margin-bottom:0.5rem; color:#a1a1aa;">🎣 Flow Rate: ${r.param_val_1} cfs | Water Temp: ${r.param_val_2}°C</div>`;
+            }
+          }
+        }
+
+        let analyticsHTML = '';
+        if (r.analytics && r.analytics.hasData) {
+          if (r.analytics.type === 'cpk') {
+            analyticsHTML = `
+              <div class="analytics-card-inline" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem;">
+                <div>
+                  <span style="font-size: 0.65rem; color: #a1a1aa; font-family: monospace; display: block; letter-spacing: 0.05em;">AGGREGATE PROCESS CAPABILITY</span>
+                  <strong style="color: #f4f4f5; font-family: Outfit, sans-serif;">C<sub>pk</sub> = ${r.analytics.cpk}</strong>
+                  <span style="font-size: 0.7rem; background: ${r.analytics.ratingColor}22; color: ${r.analytics.ratingColor}; border: 1px solid ${r.analytics.ratingColor}44; padding: 1px 4px; border-radius: 3px; margin-left: 0.35rem;">${r.analytics.rating}</span>
+                </div>
+                <div style="text-align: right; font-family: monospace; color: #a1a1aa; font-size: 0.75rem;">
+                  <div>μ = ${r.analytics.mean}°C | σ = ${r.analytics.stdDev}°C</div>
+                  <div style="font-size: 0.65rem; color: #71717a;">Samples: ${r.analytics.samples} verified runs | Target: [60°C - 85°C]</div>
+                </div>
+              </div>
+            `;
+          } else {
+            analyticsHTML = `
+              <div class="analytics-card-inline" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem;">
+                <div>
+                  <span style="font-size: 0.65rem; color: #a1a1aa; font-family: monospace; display: block; letter-spacing: 0.05em;">AGGREGATE CONSISTENCY INDEX</span>
+                  <strong style="color: #f4f4f5; font-family: Outfit, sans-serif;">CI = ${r.analytics.ci}%</strong>
+                  <span style="font-size: 0.7rem; background: ${r.analytics.ratingColor}22; color: ${r.analytics.ratingColor}; border: 1px solid ${r.analytics.ratingColor}44; padding: 1px 4px; border-radius: 3px; margin-left: 0.35rem;">${r.analytics.rating}</span>
+                </div>
+                <div style="text-align: right; font-family: monospace; color: #a1a1aa; font-size: 0.75rem;">
+                  <div>μ = ${r.analytics.mean} | CV = ${r.analytics.cv}</div>
+                  <div style="font-size: 0.65rem; color: #71717a;">Samples: ${r.analytics.samples} verified runs</div>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        let poeBadge = '';
+        if (r.isPoe) {
+          let badgeLabel = '✓ PoE Verified';
+          if (r.verification_method === 'exif_gps') badgeLabel = '📍 GPS Geofenced';
+          if (r.verification_method === 'wasm_ocr') badgeLabel = '🧾 WASM Receipt OCR';
+          if (r.verification_method === 'secure_enclave') badgeLabel = '🔒 Enclave Signature';
+          poeBadge = `<span class="review-badge poe-verified">${badgeLabel}</span>`;
+        }
+
+        const html = `
+          <div class="review-card-container" style="margin-bottom: 1.25rem;">
+            ${isCollapsed ? `
+              <div class="reveal-overlay" onclick="revealHomeReview('${r.id}')">
+                <button class="reveal-btn">⚠️ Show Disputed Review</button>
+              </div>
+            ` : ''}
+            <div class="review-card ${cardClass}" style="${isCollapsed ? 'filter: blur(5px); opacity: 0.15;' : ''}">
+              <div class="review-card-header">
+                <div class="review-author-info">
+                  <strong>${r.merchant}</strong> <span style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-warning); background: rgba(245,158,11,0.08); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 600; margin-left: 0.35rem;">${r.nodeType.replace('_', ' ')}</span>
+                  <span class="node-rep" style="margin-left: 0.5rem;">${r.author} (Rep: ${r.authorRep.toFixed(2)})</span>
+                </div>
+                <div class="review-badge-container">
+                  ${poeBadge}
+                </div>
+              </div>
+              <div class="node-path" style="font-size: 0.7rem; margin: 0.25rem 0 0.5rem; background: rgba(255,255,255,0.03); color: var(--color-text-muted); border: none;">
+                ${r.path}
+              </div>
+              ${locHTML}
+              ${parametersLine}
+              ${analyticsHTML}
+              <div class="review-content" style="margin-top: 0.25rem;">${r.content}</div>
+              ${disputeNotice}
+              <div class="review-card-footer" style="margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
+                <div class="consensus-stats">
+                  <span class="consensus-ratio-formula">θ = ${r.theta.toFixed(2)}</span>
+                  <span>(Vouch: ${r.wv.toFixed(2)} | Dispute: ${r.wd.toFixed(2)})</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        resultsContainer.innerHTML += html;
+      });
+    }
+
+    window.revealHomeReview = function(id) {
+      homeRevealedReviews.add(id);
+      renderExplorerFeed();
+    };
+
+    function saveDbState() {
+      localStorage.setItem('review_network_db', JSON.stringify(db));
+    }
+
+    async function syncLiveProfiles() {
+      try {
+        const response = await fetch('https://api.inviteonlyreviews.com/api/profiles');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.profiles) {
+            result.profiles.forEach(liveP => {
+              let localP = db.profiles.find(p => p.id === liveP.id);
+              if (localP) {
+                localP.username = liveP.username;
+                localP.reputation_score = parseFloat(liveP.reputation_score);
+                localP.invited_by = liveP.invited_by;
+                localP.is_active = liveP.is_active;
+              } else {
+                db.profiles.push({
+                  id: liveP.id,
+                  username: liveP.username,
+                  reputation_score: parseFloat(liveP.reputation_score),
+                  base_reputation: parseFloat(liveP.reputation_score),
+                  invited_by: liveP.invited_by,
+                  is_active: liveP.is_active,
+                  access_key: 'key_' + liveP.username,
+                  demographic_group: 'urban_affluent'
+                });
+              }
+            });
+            saveDbState();
+          }
+        }
+      } catch (e) {
+        console.error("Failed to sync live profiles:", e);
+      }
+    }
+
+    // 3. In-place Signup handler
+    document.getElementById('btn-home-signup')?.addEventListener('click', async () => {
+      const msgDiv = document.getElementById('signup-status-msg');
+      const tipDiv = document.getElementById('redirect-tip');
+      
+      try {
+        const token = document.getElementById('home-token-input').value.trim();
+        const username = document.getElementById('home-username-input').value.trim();
+
+        if (!token || !username) {
+          msgDiv.className = 'signup-status-message error';
+          msgDiv.innerText = 'Error: Please provide both invite token and username.';
+          msgDiv.classList.remove('hidden');
+          return;
+        }
+
+        const regex = /^[A-Za-z0-9_]{3,15}$/;
+        if (!regex.test(username)) {
+          msgDiv.className = 'signup-status-message error';
+          msgDiv.innerText = 'Error: Username must be 3-15 chars (alphanumeric and underscore).';
+          msgDiv.classList.remove('hidden');
+          return;
+        }
+
+        loadDb();
+
+        if (!db) {
+          throw new Error("Database state failed to initialize.");
+        }
+
+        // Find token
+        let tokenObj = db.invite_tokens.find(t => t.rawToken === token);
+        const isLocalToken = !!tokenObj;
+
+        if (isLocalToken) {
+          if (tokenObj.is_used) {
+            msgDiv.className = 'signup-status-message error';
+            msgDiv.innerText = 'Error: Token has already been redeemed.';
+            msgDiv.classList.remove('hidden');
+            return;
+          }
+
+          if (tokenObj.expires_at < Date.now()) {
+            msgDiv.className = 'signup-status-message error';
+            msgDiv.innerText = 'Error: Token has expired.';
+            msgDiv.classList.remove('hidden');
+            return;
+          }
+        }
+
+        if (db.profiles.some(p => p.username.toLowerCase() === username.toLowerCase())) {
+          msgDiv.className = 'signup-status-message error';
+          msgDiv.innerText = 'Error: Username is already taken.';
+          msgDiv.classList.remove('hidden');
+          return;
+        }
+
+        // Perform Cloud signup
+        msgDiv.className = 'signup-status-message info';
+        msgDiv.innerText = 'Connecting to Cloudflare edge worker...';
+        msgDiv.classList.remove('hidden');
+
+        const response = await fetch('https://api.inviteonlyreviews.com/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inviteToken: token,
+            username: username,
+            password: 'password123'
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Edge registration transaction failed.');
+        }
+
+        // Success: Sync local state
+        if (tokenObj) {
+          tokenObj.is_used = true;
+        }
+        const newId = result.profile.id;
+        
+        // Generate secure random suffix (16 hex chars)
+        const randomArray = new Uint32Array(2);
+        window.crypto.getRandomValues(randomArray);
+        const suffix = Array.from(randomArray).map(n => n.toString(16).padStart(8, '0')).join('');
+        const accessKey = 'key_' + username + '_' + suffix;
+
+        db.profiles.push({
+          id: newId,
+          username: username,
+          reputation_score: 1.0000,
+          base_reputation: 1.0000,
+          invited_by: result.profile.invited_by || (tokenObj ? tokenObj.inviter_id : null),
+          is_active: true,
+          access_key: accessKey,
+          demographic_group: 'urban_affluent'
+        });
+
+        saveDbState();
+
+        msgDiv.className = 'signup-status-message success';
+        msgDiv.innerHTML = `✓ Signup Successful! Your Access Key: <strong style="color: var(--color-primary); font-family: var(--font-mono); font-size: 1.05rem;">${accessKey}</strong><br>Copy this key to sign in.`;
+        msgDiv.classList.remove('hidden');
+
+        // Clear input fields
+        document.getElementById('home-token-input').value = '';
+        document.getElementById('home-username-input').value = '';
+
+        // Show profile link tip
+        tipDiv.innerHTML = `
+          <div style="margin-top: 1rem; padding: 1.25rem; background: rgba(16,185,129,0.06); border: 1px solid var(--border-color); border-radius: var(--radius-md); text-align: center;">
+            <p style="margin-bottom: 0.75rem; font-size: 0.9rem;">Your account is active on the network ledger.</p>
+            <button class="btn btn-primary" onclick="loginAndRedirect('${accessKey}')">Log In & Go to My Profile</button>
+          </div>
+        `;
+        tipDiv.classList.remove('hidden');
+      } catch (err) {
+        msgDiv.className = 'signup-status-message error';
+        msgDiv.innerText = 'Error: ' + err.message;
+        msgDiv.classList.remove('hidden');
+        console.error(err);
+      }
+    });
+
+    window.loginAndRedirect = function(key) {
+      sessionStorage.setItem('current_user_key', key);
+      window.location.href = 'profile.html';
+    };
+
+    // 4. Hover effect on the mocked disputed review
+    const previewOverlay = document.querySelector('.preview-overlay-mock');
+    const previewContent = document.querySelector('.preview-card-content');
+    
+    if (previewOverlay) {
+      previewOverlay.addEventListener('click', () => {
+        previewOverlay.style.display = 'none';
+        previewContent.style.filter = 'none';
+        previewContent.style.opacity = '1';
+      });
+    }
+
+    // Bind filters
+    document.getElementById('explorer-search-input')?.addEventListener('input', renderExplorerFeed);
+    document.getElementById('chk-explorer-poe-only')?.addEventListener('change', renderExplorerFeed);
+    document.getElementById('chk-explorer-causal-ipw')?.addEventListener('change', (e) => {
+      enableCausalIpw = e.target.checked;
+      renderExplorerFeed();
+    });
+    document.getElementById('select-explorer-consensus')?.addEventListener('change', renderExplorerFeed);
+
+    // Sync storage updates
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'review_network_db') {
+        loadDb();
+        renderExplorerFeed();
+      }
+    });
+
+    // Initial render
+    renderExplorerFeed();
+  </script>
+  <script src="assistant.js"></script>
+</body>
+</html>

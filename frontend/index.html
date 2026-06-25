@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InviteOnly Portal - Verify, Discover & Review</title>
+  
+  <!-- CSS Styling -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Inter & Mono Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Left Fixed Vertical Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <span class="logo-icon">✦</span>
+        <h2>InviteOnly <span class="logo-sub">Portal</span></h2>
+      </div>
+      
+      <!-- Navigation Tabs -->
+      <nav class="sidebar-nav" id="portal-nav-tabs">
+        <button class="nav-tab-btn active" data-tab="feed-view">
+          <span class="btn-icon">🌐</span> Forum Feed
+        </button>
+        <button class="nav-tab-btn" data-tab="following-view" id="nav-btn-following">
+          <span class="btn-icon">👥</span> Following Feed
+        </button>
+        <button class="nav-tab-btn" data-tab="browse-view">
+          <span class="btn-icon">📁</span> Browse Directory
+        </button>
+        <button class="nav-tab-btn" data-tab="submit-view" id="nav-btn-submit">
+          <span class="btn-icon">📝</span> Post Review
+        </button>
+        <button class="nav-tab-btn" data-tab="settings-view">
+          <span class="btn-icon">⚙️</span> Settings
+        </button>
+        <a href="profile.html" class="nav-link-btn">
+          <span class="btn-icon">👤</span> My Profile
+        </a>
+        <a href="home.html" class="nav-link-btn">
+          <span class="btn-icon">🏠</span> Landing Page
+        </a>
+      </nav>
+
+      <!-- User status shortcut anchored at bottom -->
+      <div class="sidebar-footer">
+        <div class="user-badge-shortcut" id="header-user-status" onclick="location.href='profile.html'" style="cursor: pointer;">
+          <span class="user-status-dot offline"></span>
+          <span class="username-display">@username</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Container -->
+    <main class="portal-main-container">
+    
+    <!-- Tab 1: Forum Feed View -->
+    <section class="portal-tab-content active" id="feed-view">
+      <div class="feed-controls-card card">
+        <div class="search-bar-row">
+          <input type="text" id="feed-search-input" placeholder="Search by content, merchant name, or tags (e.g. #fishing)...">
+          <select id="feed-sort-select" class="select-field">
+            <option value="newest">Latest Reviews</option>
+            <option value="consensus">Highest Vouch</option>
+            <option value="contested">Most Contested</option>
+          </select>
+        </div>
+        
+        <!-- Popular Tags Bar -->
+        <div class="popular-tags-container">
+          <span class="tags-label">Filter by Tag:</span>
+          <div class="tag-chips-wrapper" id="feed-popular-tags">
+            <!-- Render popular tags dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Filter indicator -->
+      <div class="active-filter-indicator hidden" id="active-tag-indicator">
+        Showing reviews tagged with <span class="filter-tag-badge" id="active-tag-name">#tag</span>
+        <button class="btn-clear-filter" id="btn-clear-tag-filter">✕ Clear Filter</button>
+      </div>
+
+      <!-- Feed Container -->
+      <div class="forum-feed-list" id="portal-feed-list">
+        <!-- Render forum-style posts dynamically -->
+      </div>
+    </section>
+ 
+    <!-- Tab 1b: Following Feed View -->
+    <section class="portal-tab-content" id="following-view">
+      <div class="feed-controls-card card">
+        <div class="card-header">
+          <h2>Following Feed</h2>
+          <span class="badge privacy-badge">Chronological</span>
+        </div>
+        <p class="card-desc">Reviews posted by the creators you follow, sorted in direct chronological order.</p>
+      </div>
+
+      <!-- Following Feed Container -->
+      <div class="forum-feed-list" id="portal-following-feed-list">
+        <!-- Render following reviews dynamically -->
+      </div>
+    </section>
+
+    <!-- Tab 2: Browse Directory View -->
+    <section class="portal-tab-content" id="browse-view">
+      <div class="directory-explorer-grid">
+        
+        <!-- Directory Navigation Sidebar -->
+        <div class="card directory-nav-card">
+          <div class="card-header">
+            <h2>Explore Directory</h2>
+            <span class="badge count-badge" id="directory-nodes-count">0 items</span>
+          </div>
+          <p class="card-desc">Navigate regional categories, items, and registered merchants.</p>
+          
+          <!-- Hierarchical Breadcrumbs -->
+          <div class="directory-breadcrumbs" id="directory-breadcrumbs-bar">
+            <!-- Render breadcrumbs -->
+          </div>
+
+          <!-- Sub-directory items list -->
+          <div class="directory-items-deck" id="directory-items-deck">
+            <!-- Render items dynamically -->
+          </div>
+        </div>
+
+        <!-- Selected Node Details & Reviews -->
+        <div class="directory-details-area">
+          <div class="card selected-node-info-card" id="selected-node-info-card">
+            <!-- Render active selected node details -->
+          </div>
+
+          <div class="selected-node-reviews-container">
+            <h3 class="section-title">Directory Space Feedback</h3>
+            <div class="forum-feed-list" id="directory-reviews-list">
+              <!-- Render selected node reviews dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Tab 3: Post Review View -->
+    <section class="portal-tab-content" id="submit-view">
+      <div class="review-submission-wrapper">
+        <!-- If guest, show login prompt card -->
+        <div class="card guest-warning-card" id="submit-guest-gate">
+          <div class="warning-icon">🔐</div>
+          <h2>Access Key Required</h2>
+          <p>You must authenticate to write immutable reviews. Use your invitation Access Key or log in via your profile dashboard.</p>
+          <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+            <button class="btn btn-primary" onclick="location.href='profile.html'">Go to Login Dashboard</button>
+            <button class="btn btn-secondary" onclick="location.href='home.html#invite-section'">Redeem Invite Token</button>
+          </div>
+        </div>
+
+        <!-- Submission form card (hidden if guest) -->
+        <div class="card review-form-card hidden" id="submit-form-card">
+          <div class="card-header">
+            <h2>Post Verifiable Review</h2>
+            <span class="badge reputation-badge" id="submit-reputation-badge">Reputation 1.0000</span>
+          </div>
+          
+          <div class="submission-form" id="portal-review-form">
+            <div class="form-row-split">
+              <!-- Select target node mode -->
+              <div class="form-group" style="flex: 1;">
+                <label>Review Target Node</label>
+                <div class="radio-toggle-group">
+                  <label class="radio-label">
+                    <input type="radio" name="portal-review-node-mode" value="existing" checked> Existing Node
+                  </label>
+                  <label class="radio-label">
+                    <input type="radio" name="portal-review-node-mode" value="new"> Create New Path
+                  </label>
+                </div>
+              </div>
+
+              <!-- Node category selection or leaf node selection -->
+              <div class="form-group" style="flex: 1.5;" id="portal-target-node-group">
+                <label for="select-portal-target-node">Select Existing Merchant / Space</label>
+                <div class="select-searchable-container">
+                  <input type="text" class="input-field select-search-input" id="portal-target-node-search" placeholder="Type to filter spaces...">
+                  <select id="select-portal-target-node" class="select-field select-filtered-options" size="4">
+                    <!-- Loaded dynamically -->
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Nested Node Creator (Hidden by default) -->
+            <div class="node-creator-panel nested-panel hidden" id="portal-node-creator-panel">
+              <div class="form-row-split">
+                <div class="form-group" style="flex: 1.5;">
+                  <label for="select-portal-parent-category">Select Parent Directory Location</label>
+                  <div class="select-searchable-container">
+                    <input type="text" class="input-field select-search-input" id="portal-parent-category-search" placeholder="Type to filter parent folders...">
+                    <select id="select-portal-parent-category" class="select-field select-filtered-options" size="3">
+                      <!-- Loaded dynamically -->
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group" style="flex: 1;">
+                  <label for="select-portal-leaf-type">Leaf Node Type</label>
+                  <select id="select-portal-leaf-type" class="select-field">
+                    <option value="merchant">Merchant / Business</option>
+                    <option value="item">Product / Menu Item</option>
+                    <option value="fishing_spot">Fishing Spot</option>
+                    <option value="point_of_interest">Point of Interest / Landmark</option>
+                    <option value="city">City / Town</option>
+                    <option value="state">State / Province</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 0.75rem;">
+                <label for="portal-review-new-path">New Location Path (use "/" to nest paths, e.g. "Ramen / Tatsuya")</label>
+                <input type="text" id="portal-review-new-path" class="input-field" placeholder="e.g. Coffee / Epoch Coffee North">
+              </div>
+
+              <div class="form-row-split" style="margin-top: 0.75rem;">
+                <div class="form-group">
+                  <label for="portal-review-new-address">Physical Address (Google Maps autoverified)</label>
+                  <input type="text" id="portal-review-new-address" class="input-field" placeholder="Type address or location...">
+                  <div class="autocomplete-dropdown hidden" id="portal-address-autocomplete"></div>
+                </div>
+                <div class="form-group">
+                  <label for="portal-review-new-coords">GPS Coordinates (Auto-populated)</label>
+                  <input type="text" id="portal-review-new-coords" class="input-field" placeholder="e.g. 30.2672, -97.7431" readonly>
+                </div>
+              </div>
+            </div>
+
+            <!-- Review Body Text -->
+            <div class="form-group" style="margin-top: 1rem;">
+              <label for="portal-review-text">Review Content (Minimum 10 characters)</label>
+              <textarea id="portal-review-text" class="input-field" rows="4" placeholder="Describe your genuine product specs, service experience, or spatial telemetry..."></textarea>
+            </div>
+
+            <!-- Tag Granularity Entry -->
+            <div class="form-group" style="margin-top: 1rem;">
+              <label for="portal-review-tags">Add Custom Tags (comma-separated, e.g. third wave coffee shop, outdoor recreation, EDC gear)</label>
+              <input type="text" id="portal-review-tags" class="input-field" placeholder="third wave coffee shop, austin eats, espresso">
+            </div>
+
+            <!-- Telemetry & Proof-of-Experience (PoE) Pipeline -->
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>Proof-of-Experience (PoE) Verification</label>
+              <div class="poe-options-row">
+                <div class="poe-filter-checkbox">
+                  <input type="checkbox" id="chk-portal-gps" class="checkbox-field">
+                  <label for="chk-portal-gps">Verify Proximity (EXIF GPS)</label>
+                </div>
+                <div class="poe-filter-checkbox">
+                  <input type="checkbox" id="chk-portal-ocr" class="checkbox-field">
+                  <label for="chk-portal-ocr">Verify Transaction (WASM Receipt OCR)</label>
+                </div>
+              </div>
+
+              <!-- GPS Presets -->
+              <div class="form-group hidden" id="portal-gps-preset-group" style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                <label for="select-portal-gps-preset">Mock Image GPS Metadata:</label>
+                <select id="select-portal-gps-preset" class="select-field">
+                  <option value="correct">Match: Correct coordinates (within 50m of merchant)</option>
+                  <option value="wrong">Mismatch: Wrong coordinates (8,250km away)</option>
+                  <option value="none">No GPS: Missing spatial coordinates in metadata</option>
+                </select>
+              </div>
+
+              <!-- OCR Presets -->
+              <div class="form-group hidden" id="portal-ocr-preset-group" style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                <label for="select-portal-ocr-preset">Mock Receipt Upload Text:</label>
+                <select id="select-portal-ocr-preset" class="select-field">
+                  <option value="correct">Match: Receipt contains merchant name</option>
+                  <option value="wrong">Mismatch: Receipt contains different merchant name</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Telemetry Console Logs -->
+            <div class="terminal-log hidden" id="portal-poe-logs" style="margin-top: 1rem; max-height: 150px;"></div>
+
+            <!-- Submission CTA -->
+            <button class="btn btn-primary btn-full" id="btn-portal-submit-review" style="margin-top: 1.25rem;">Submit Immutable Review</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 4: Settings & Preferences View -->
+    <section class="portal-tab-content" id="settings-view">
+      <div class="settings-grid">
+        
+        <!-- User Preference Profile Card -->
+        <div class="card settings-profile-card">
+          <div class="card-glow"></div>
+          <div class="card-header">
+            <h2>User Account</h2>
+            <span class="badge privacy-badge" id="settings-user-group">Active Ledger Profile</span>
+          </div>
+          
+          <div id="settings-user-info" style="margin-top: 1rem;">
+            <!-- Will be populated dynamically by index.js -->
+          </div>
+
+          <!-- Change Username Form -->
+          <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);" id="username-change-container">
+            <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; color: #a1a1aa; font-family: var(--font-heading);">Change Username</h4>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" id="settings-new-username" class="select-field" style="padding: 0.5rem; font-size: 0.85rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-sm); flex: 1; color: white;" placeholder="New username">
+              <button class="btn btn-primary" id="btn-settings-change-username" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: var(--radius-sm);">Update</button>
+            </div>
+            <span style="font-size: 0.65rem; color: var(--color-text-dim); margin-top: 0.35rem; display: block;">Must be 3-15 chars (letters, numbers, underscores). Changing your username will update your Access Key.</span>
+            <div id="username-change-error" class="signup-status-message error hidden" style="margin-top: 0.5rem; font-size: 0.8rem;"></div>
+          </div>
+        </div>
+
+        <!-- Global Preferences Card -->
+        <div class="card settings-prefs-card">
+          <div class="card-header">
+            <h2>Preferences</h2>
+            <span class="badge consensus-badge">Ledger Config</span>
+          </div>
+          <p class="card-desc">Configure local UI filter thresholds and censor-resistance rules.</p>
+          
+          <div class="prefs-options-list" style="margin-top: 1.25rem;">
+            <div class="pref-option-row">
+              <div class="pref-checkbox-wrapper">
+                <input type="checkbox" id="chk-settings-reveal-low" class="checkbox-field">
+                <label for="chk-settings-reveal-low" style="font-weight: 500; cursor: pointer;">Auto-reveal contested reviews</label>
+              </div>
+              <span class="pref-help-text">If checked, contested reviews ($\theta < 0.40$) will remain fully visible with a warning banner, instead of being collapsed under a consent overlay.</span>
+            </div>
+
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+  </div><!-- .app-layout -->
+
+  <!-- Interactive Network Chat Assistant -->
+  <script src="assistant.js"></script>
+
+  <!-- Portal Application scripts -->
+  <script src="index.js"></script>
+</body>
+</html>

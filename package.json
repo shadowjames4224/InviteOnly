@@ -1,0 +1,27 @@
+{
+  "name": "decentralized-review-ecosystem",
+  "version": "1.0.0",
+  "description": "An Uncompromising, Privacy-First, Decentralized-Ethos Review Ecosystem Repository",
+  "scripts": {
+    "start": "python3 -m http.server 8080 --directory frontend",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "python3 database/migrate.py",
+    "worker:install": "cd workers && npm install",
+    "worker:dev": "cd workers && npm run dev",
+    "worker:deploy": "cd workers && npm run deploy",
+    "worker:typecheck": "cd workers && npm run typecheck"
+  },
+  "keywords": [
+    "privacy",
+    "decentralized",
+    "reviews",
+    "exif-scrubber",
+    "tesseract-ocr",
+    "ltree",
+    "cloudflare-workers",
+    "supabase"
+  ],
+  "author": "Antigravity Dev Team",
+  "license": "MIT"
+}

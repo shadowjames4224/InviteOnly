@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile Dashboard - InviteOnly Network</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Left Fixed Vertical Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <span class="logo-icon">✦</span>
+        <h2>InviteOnly <span class="logo-sub">Network</span></h2>
+      </div>
+      
+      <!-- Navigation Tabs -->
+      <nav class="sidebar-nav">
+        <a href="index.html?tab=feed-view" class="nav-link-btn">
+          <span class="btn-icon">🌐</span> Forum Feed
+        </a>
+        <a href="index.html?tab=browse-view" class="nav-link-btn">
+          <span class="btn-icon">📁</span> Browse Directory
+        </a>
+        <a href="index.html?tab=submit-view" class="nav-link-btn">
+          <span class="btn-icon">📝</span> Post Review
+        </a>
+        <a href="index.html?tab=settings-view" class="nav-link-btn">
+          <span class="btn-icon">⚙️</span> Settings
+        </a>
+        <a href="profile.html" class="nav-link-btn active">
+          <span class="btn-icon">👤</span> My Profile
+        </a>
+        <a href="home.html" class="nav-link-btn">
+          <span class="btn-icon">🏠</span> Landing Page
+        </a>
+      </nav>
+
+      <!-- User status shortcut anchored at bottom -->
+      <div class="sidebar-footer">
+        <!-- Will show profile link / status -->
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main-content">
+
+  <!-- Login Gate (Hidden if Logged In) -->
+  <div class="login-container" id="login-gate">
+    <div class="login-header">
+      <h2>Access Your Profile</h2>
+      <p>Enter your private Access Key to access your profile.</p>
+    </div>
+    
+    <div class="form-group">
+      <label for="login-access-key">Private Access Key</label>
+      <input type="password" id="login-access-key" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;" placeholder="e.g. key_username_suffix">
+    </div>
+    
+    <button class="btn btn-primary btn-full" style="margin-top: 1rem;" id="btn-login">Verify Key & Access Network</button>
+    <div class="signup-status-message error hidden" style="margin-top: 1rem;" id="login-error-msg"></div>
+
+    <div style="margin-top: 1.5rem; text-align: center;">
+      <a href="#" id="toggle-redeem-form" style="color: var(--color-primary); font-size: 0.85rem; text-decoration: none;">Don't have an Access Key? Redeem invite token &rarr;</a>
+    </div>
+
+    <!-- Hidden in-place signup form -->
+    <div class="hidden" id="login-gate-redeem-form" style="margin-top: 1.25rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+      <h4 style="font-family: var(--font-heading); font-size: 0.95rem; margin-bottom: 0.75rem; text-align: center; color: var(--color-text-main);">Redeem Invitation</h4>
+      <div class="form-group" style="margin-bottom: 0.75rem;">
+        <label for="profile-reg-token" style="font-size: 0.75rem;">Invite Token (e.g. tkn_root_invite)</label>
+        <input type="text" id="profile-reg-token" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; font-size: 0.85rem;" placeholder="tkn_xxxx">
+      </div>
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label for="profile-reg-username" style="font-size: 0.75rem;">Select Public Username</label>
+        <input type="text" id="profile-reg-username" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; font-size: 0.85rem;" placeholder="3-15 chars, alphanumeric">
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-profile-signup">Register & Automatically Log In</button>
+      <div class="signup-status-message error hidden" style="margin-top: 0.75rem;" id="profile-signup-msg"></div>
+    </div>
+
+    <!-- Testing Quick Logins Moved to Admin Console -->
+  </div>
+
+  <!-- Profile Content (Hidden if Logged Out) -->
+  <div class="profile-container hidden" id="profile-content">
+    <div class="profile-grid">
+      
+      <!-- Left Column: Sidebar Profile Card & Invites -->
+      <aside class="profile-sidebar">
+        
+        <!-- Profile Info Card -->
+        <section class="card profile-header-card">
+          <div class="card-glow"></div>
+          <div class="profile-avatar-row">
+            <div class="profile-avatar-icon" id="user-avatar">👤</div>
+            <div class="profile-meta-title">
+              <h3 id="profile-username">username</h3>
+              <span class="badge privacy-badge" id="profile-status">Active</span>
+            </div>
+          </div>
+          
+          <div class="stats-grid">
+            <div class="stat-item-row">
+              <span>Reputation Score</span>
+              <span id="profile-rep">1.0000</span>
+            </div>
+            <div class="stat-item-row">
+              <span>Base Reputation</span>
+              <span id="profile-base-rep">1.0000</span>
+            </div>
+            <div class="stat-item-row">
+              <span>Invited By</span>
+              <span id="profile-invited-by">root</span>
+            </div>
+            <div class="stat-item-row">
+              <span>Access Key</span>
+              <span id="profile-key-preview" style="font-size: 0.75rem; color: var(--color-primary); word-break: break-all;">key_xxx</span>
+            </div>
+          </div>
+
+          <!-- Memorable Suffix Customizer -->
+          <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);" id="custom-key-container">
+            <h4 style="font-size: 0.82rem; margin-bottom: 0.35rem; text-transform: uppercase; color: #a1a1aa; font-family: var(--font-heading);">Memorable Key Suffix</h4>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" id="custom-key-suffix" class="select-field" style="padding: 0.4rem; font-size: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-sm); flex: 1; color: white;" placeholder="e.g. secretpass">
+              <button class="btn btn-primary" id="btn-update-key-suffix" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; border-radius: var(--radius-sm);">Update</button>
+            </div>
+            <span style="font-size: 0.65rem; color: var(--color-text-dim); margin-top: 0.25rem; display: block;">Full key format: key_[username]_[suffix]</span>
+          </div>
+
+          <div class="sync-status-indicator" style="margin-top: 1.25rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+            <span class="sync-status-dot"></span>
+            <span>Real-time Sync Active</span>
+          </div>
+
+          <button class="btn btn-secondary btn-full" style="margin-top: 1.25rem;" id="btn-logout">
+            Logout Profile
+          </button>
+        </section>
+
+        <!-- Invite tokens manager -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Generate Invites</h2>
+            <span class="badge privacy-badge" id="invites-left">5 Left</span>
+          </div>
+          <p class="card-desc" style="font-size: 0.85rem; margin-bottom: 1rem;">Generate single-use invitation tokens. Each profile is limited to <strong>5 total invites</strong>.</p>
+          
+          <button class="btn btn-primary btn-full" id="btn-generate-profile-token">
+            Generate Invite Token
+          </button>
+
+          <div class="token-list-container" id="profile-token-list">
+            <!-- Render tokens dynamically -->
+          </div>
+
+          <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <h3 style="font-size: 0.95rem; margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--color-text-main);">Redeemed Accounts</h3>
+            <div id="profile-redeemed-list" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+              <!-- Render redeemed profiles dynamically -->
+            </div>
+          </div>
+        </section>
+
+      </aside>
+
+      <!-- Right Column: Submit Review and Personal Feed -->
+      <main class="profile-main-content">
+        
+        <!-- Admin Management Console (Visible only to root_moderator) -->
+        <section class="card hidden" id="admin-management-panel" style="margin-bottom: 2rem;">
+          <div class="card-header">
+            <h2>Admin Management Console</h2>
+            <span class="badge count-badge" id="admin-user-count">8 Profiles</span>
+          </div>
+          <p class="card-desc">Inspect network lineage, cascade-revoke invitation branches, generate root/moderator invites, and configure decay parameters.</p>
+          
+          <!-- Quick Selector for Managing Users & Global Reviews Manager Toggle -->
+          <div class="admin-quick-select-row" style="display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-top: 1rem; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px; display: flex; align-items: center; gap: 0.5rem;">
+              <label for="select-admin-manage-user" style="font-size: 0.8rem; color: #a1a1aa; white-space: nowrap; font-weight: 500;">Search & Manage User:</label>
+              <select id="select-admin-manage-user" class="select-field" style="flex: 1; padding: 0.4rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white;">
+                <option value="">-- Choose Profile to Edit --</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary" id="btn-toggle-global-reviews" style="width: auto; padding: 0.45rem 1rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; margin-left: auto;">
+              <span>📝</span> View All Posts
+            </button>
+          </div>
+
+          <div class="admin-grid">
+            <!-- Left: Lineage Graph -->
+            <div>
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--color-text-main);">Trust Lineage Graph</h3>
+              <div class="invite-graph-container" id="admin-invite-graph" style="height: 320px;">
+                <!-- SVG or CSS tree will be rendered here dynamically -->
+              </div>
+            </div>
+            
+            <!-- Right: Node/User Details and Actions -->
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.15rem; font-family: var(--font-heading); color: var(--color-text-main);">Profile Operations</h3>
+              <div class="user-details-panel" id="admin-user-details-panel" style="flex: 1; min-height: 200px; display: flex; flex-direction: column; justify-content: center; background: rgba(0,0,0,0.15);">
+                <div class="details-placeholder" style="line-height: normal; text-align: center; padding: 2rem 0; width: 100%;">Select a profile from the lineage graph</div>
+                <div class="details-content hidden" id="admin-user-details-content" style="width: 100%;">
+                  <div class="details-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 id="admin-detail-username" style="margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">username</h3>
+                    <span class="status-indicator" id="admin-detail-status">Active</span>
+                  </div>
+                  <div class="details-meta" style="display: flex; gap: 1.5rem; margin-bottom: 1.25rem;">
+                    <div class="meta-item">
+                      <span class="meta-label">Reputation Score</span>
+                      <span class="meta-value score-value" id="admin-detail-reputation">1.0000</span>
+                    </div>
+                    <div class="meta-item">
+                      <span class="meta-label">Invited By</span>
+                      <span class="meta-value" id="admin-detail-invited-by">root</span>
+                    </div>
+                  </div>
+                  
+                  <div class="form-group" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <label for="input-admin-base-rep" style="font-size: 0.8rem; color: #a1a1aa; text-transform: uppercase;">Manual Base Reputation Override</label>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                      <input type="number" id="input-admin-base-rep" step="0.0001" min="0" value="1.0000" class="select-field" style="padding: 0.4rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: white; flex: 1;">
+                      <button class="btn btn-primary" id="btn-admin-update-rep" style="padding: 0.4rem 1rem;">Apply</button>
+                    </div>
+                  </div>
+
+                  <div class="details-actions" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
+                      <select id="select-admin-suspend-duration" class="select-field" style="flex: 1; min-width: 120px; padding: 0.4rem 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white;" title="Suspension duration when active">
+                        <option value="permanent">Permanent</option>
+                        <option value="1h">1 Hour</option>
+                        <option value="24h">24 Hours</option>
+                        <option value="7d">7 Days</option>
+                      </select>
+                      <button class="btn btn-secondary" id="btn-admin-toggle-status" style="flex: 1.2; min-width: 120px;">
+                        Suspend User
+                      </button>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; width: 100%;">
+                      <button class="btn btn-secondary" id="btn-admin-create-behalf-invite" style="flex: 1;">
+                        Invite on Behalf
+                      </button>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; width: 100%;">
+                      <button class="btn btn-danger" id="btn-admin-revoke-user" style="flex: 1;" title="Deactivates this user and their entire downstream invitation lineage tree">
+                        <span class="btn-icon">⚡</span> Cascade Revoke
+                      </button>
+                      <button class="btn btn-danger" id="btn-admin-delete-user" style="flex: 1; background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger);" title="Purge user completely and re-link child invitation subtrees to parent">
+                        🗑️ Purge Profile
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="admin-user-reviews-container" style="margin-top: 1.25rem; border-top: 1px solid var(--border-color); padding-top: 1rem;" class="hidden">
+                    <h4 style="font-size: 0.8rem; color: #a1a1aa; text-transform: uppercase; margin-bottom: 0.5rem; font-family: var(--font-heading);">User's Posted Reviews</h4>
+                    <div id="admin-user-reviews-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+                      <!-- Rendered dynamically -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Token Output section -->
+          <div class="invite-token-output hidden" id="admin-invite-token-output" style="margin-top: 1.25rem; padding: 1rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+            <div class="token-title" style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--color-primary); margin-bottom: 0.35rem;">Generated Invite Token (Single-Use)</div>
+            <div class="token-code-row" style="display: flex; gap: 0.5rem; align-items: center;">
+              <code id="admin-generated-token" style="font-family: var(--font-mono); font-size: 0.95rem; color: white; background: rgba(0,0,0,0.5); padding: 0.5rem; border-radius: var(--radius-sm); flex: 1; word-break: break-all;">tkn_123456...</code>
+              <button class="btn btn-primary" id="btn-admin-copy-token" style="padding: 0.5rem 1rem;">Copy</button>
+            </div>
+            <span class="token-hint" style="font-size: 0.7rem; color: var(--color-text-dim); display: block; margin-top: 0.35rem;">This invite token has been registered in the database.</span>
+          </div>
+
+          <hr class="divider" style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color);">
+
+          <!-- Direct Profile Creation Form -->
+          <div id="admin-create-user-section" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+            <h3 style="font-size: 0.95rem; margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--color-text-main);">Create User Profile Directly</h3>
+            <p style="font-size: 0.82rem; color: #a1a1aa; margin-bottom: 1rem;">Manually provision a new user profile directly in the database, bypassing invite codes.</p>
+            
+            <div class="admin-create-grid">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="input-admin-create-username" style="font-size: 0.75rem; color: #a1a1aa; display: block; margin-bottom: 0.25rem;">Username</label>
+                <input type="text" id="input-admin-create-username" placeholder="e.g. david" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="input-admin-create-base-rep" style="font-size: 0.75rem; color: #a1a1aa; display: block; margin-bottom: 0.25rem;">Base Reputation</label>
+                <input type="number" id="input-admin-create-base-rep" step="0.1" value="1.0" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="select-admin-create-inviter" style="font-size: 0.75rem; color: #a1a1aa; display: block; margin-bottom: 0.25rem;">Invited By (Parent)</label>
+                <select id="select-admin-create-inviter" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="input-admin-create-key-suffix" style="font-size: 0.75rem; color: #a1a1aa; display: block; margin-bottom: 0.25rem;">Key Suffix (Optional)</label>
+                <input type="text" id="input-admin-create-key-suffix" placeholder="e.g. mysecretkey" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.5rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+              </div>
+            </div>
+            
+            <button class="btn btn-primary" id="btn-admin-create-user" style="margin-top: 1rem; width: auto; padding: 0.6rem 1.5rem;">Create Profile Directly</button>
+          </div>
+
+          <hr class="divider" style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color);">
+
+          <!-- Bottom: Global Parameters & System Invite -->
+          <div class="admin-bottom-grid">
+            <!-- Lineage Decay constant -->
+            <div class="reputation-decay-panel" style="padding: 0; background: transparent; border: none;">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.25rem; font-family: var(--font-heading); color: var(--color-text-main);">Reputation Alpha Decay Settings</h3>
+              <p class="panel-desc" style="font-size: 0.82rem; color: #a1a1aa; margin-bottom: 0.75rem;">Adjust the penalty weight applied to inviters when downstream accounts post disputed reviews.</p>
+              <div class="decay-controls">
+                <div class="slider-row" style="display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-sm);">
+                  <label for="admin-lineage-alpha" style="font-size: 0.85rem; color: #e2e8f0; font-weight: 500;">Lineage Penalty (\(\alpha\)):</label>
+                  <input type="range" id="admin-lineage-alpha" min="0" max="1" step="0.05" value="0.25" style="flex: 1; accent-color: var(--color-primary); cursor: pointer;">
+                  <span id="admin-alpha-value" style="font-family: var(--font-mono); font-weight: 600; color: var(--color-primary); min-width: 2.5rem; text-align: right;">0.25</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Generate System/Moderator Invite -->
+            <div>
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.25rem; font-family: var(--font-heading); color: var(--color-text-main);">System Invites</h3>
+              <p style="font-size: 0.82rem; color: #a1a1aa; margin-bottom: 0.75rem;">Generate a root-level "moderator" invite token (inviter is root admin).</p>
+              <button class="btn btn-primary btn-full" id="btn-admin-create-system-invite">
+                Generate Root/Moderator Invite
+              </button>
+            </div>
+          </div>
+
+          <!-- Global Reviews Manager Section (Hidden by default) -->
+          <div id="admin-global-reviews-section" class="hidden" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h3 style="font-size: 0.95rem; font-family: var(--font-heading); color: var(--color-text-main); margin: 0;">Global Posts (Reviews) Manager</h3>
+              <button class="btn-clear-filter" id="btn-close-global-reviews" style="font-size: 0.8rem; cursor: pointer; color: var(--color-text-dim); background: transparent; border: none; padding: 2px 6px;">✕ Close</button>
+            </div>
+            <p style="font-size: 0.82rem; color: #a1a1aa; margin-bottom: 1rem;">Inspect and purge any review published across the entire decentralized network.</p>
+            <div id="admin-global-reviews-list" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-sm); background: rgba(0,0,0,0.15);">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Post Review Card -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Post a New Review</h2>
+            <span class="badge ltree-badge">verification</span>
+          </div>
+          <p class="card-desc">Post a review to the network. Use proof-of-experience verification to verify your review.</p>
+          
+          <!-- Target Node Selection Mode Toggle -->
+          <div class="form-group" style="margin-top: 1rem;">
+            <label style="margin-bottom: 0.5rem; display: block; font-family: var(--font-heading); font-size: 0.9rem;">Target Node Mode</label>
+            <div style="display: flex; gap: 1.5rem; margin-bottom: 0.75rem;">
+              <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.85rem;">
+                <input type="radio" name="review-node-mode" value="existing" checked style="accent-color: var(--color-primary);">
+                <span>Review Existing Location / Entity</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.85rem;">
+                <input type="radio" name="review-node-mode" value="new" style="accent-color: var(--color-primary);">
+                <span>Create New Path & Review</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Existing Merchant selection -->
+          <div class="form-group" id="group-existing-node" style="margin-bottom: 1rem;">
+            <label for="review-target-node">Select Target Node / Location</label>
+            <select id="review-target-node" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+
+          <!-- New Node Path creation -->
+          <div class="form-group hidden" id="group-new-node" style="margin-bottom: 1rem; border-left: 2px solid var(--color-primary); padding-left: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="form-group">
+              <label for="review-new-parent-node">Base Parent Node (Select category/city/etc.)</label>
+              <select id="review-new-parent-node" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
+                <!-- Populated dynamically with all nodes -->
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="review-new-path">New Nested Sub-path (Slashes separate categories/items)</label>
+              <input type="text" id="review-new-path" placeholder="e.g. Coffee Shops / Genuine Joe Coffee" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.95rem;">
+              <span style="font-size: 0.7rem; color: var(--color-text-dim); margin-top: 0.25rem; display: block;">Categories are created automatically.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="review-new-address">Verified Address (Optional)</label>
+              <input type="text" id="review-new-address" placeholder="e.g. 200 Congress Ave, Austin, TX" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.95rem;">
+            </div>
+
+            <div class="form-group">
+              <label for="review-new-coords">Coordinates / GPS (Optional)</label>
+              <input type="text" id="review-new-coords" placeholder="e.g. 30.2672° N, 97.7431° W" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.95rem;">
+            </div>
+
+            <div class="form-group">
+              <label for="review-new-global-entity">Global Entity Blueprint (Optional)</label>
+              <select id="review-new-global-entity" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
+                <option value="">None (Generic Node)</option>
+                <option value="ge_macchiato">Iced Caramel Macchiato (Commercial Service)</option>
+                <option value="ge_gpu_x">Silicon Core GPU-X (Physical Good)</option>
+                <option value="ge_fishing_pool">Silver Creek Fly Fishing Pool (Outdoor Asset)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="review-new-leaf-type">Leaf Node Type</label>
+              <select id="review-new-leaf-type" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
+                <option value="merchant">Merchant (Store / Place / Business)</option>
+                <option value="item">Item (Product / Menu Item / Specific Service)</option>
+                <option value="fishing_spot">Fishing Spot (Lake / River / Dock / Pier)</option>
+                <option value="point_of_interest">Point of Interest (Landmark / Park / POI)</option>
+                <option value="state">State / Province</option>
+                <option value="city">City / Town</option>
+                <option value="category">Category (General Taxonomy Node)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Dynamic Telemetry Fields depending on node category -->
+          <div id="profile-telemetry-inputs-container" class="form-group hidden" style="background: rgba(0,0,0,0.15); padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 0.75rem;">
+            <!-- Populated dynamically via profile.js -->
+          </div>
+
+          <div class="form-group">
+            <label for="new-review-text">Review Content (10 to 10000 characters)</label>
+            <textarea id="new-review-text" placeholder="Be objective. Detail your consumer experience..." rows="4" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; resize: vertical; font-family: var(--font-body);"></textarea>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.75rem;">
+            <label for="new-review-tags">Add Custom Tags (comma-separated, e.g. third wave coffee shop, EDC gear)</label>
+            <input type="text" id="new-review-tags" placeholder="e.g. third wave coffee shop, espresso, coffee" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; font-family: var(--font-body);">
+          </div>
+
+
+
+          <button class="btn btn-primary btn-full" style="margin-top: 1.5rem;" id="btn-submit-profile-review">
+            Post Review
+          </button>
+        </section>
+
+        <!-- Posted Reviews Feed -->
+        <section class="card">
+          <div class="card-header">
+            <h2>My Posted Reviews</h2>
+            <span class="badge count-badge" id="my-reviews-count">0 Reviews</span>
+          </div>
+          
+          <div class="explorer-results-feed" id="profile-reviews-feed" style="margin-top: 1.25rem;">
+            <!-- Render my reviews dynamically -->
+          </div>
+        </section>
+
+      </main>
+
+    </div><!-- closes .profile-grid -->
+  </div><!-- closes #profile-content -->
+</div><!-- .app-main-content -->
+</div><!-- .app-layout -->
+
+  <footer>
+    <div class="footer-container">
+      <p>InviteOnly Review Network © 2026. Zero Tracker Policy. Cryptographically secured.</p>
+      <div class="footer-links">
+        <a href="home.html" class="doc-link">Landing Page</a>
+        <a href="index.html" class="doc-link">Portal Feed</a>
+
+      </div>
+    </div>
+  </footer>
+
+  <!-- App logic specific to profile dashboard -->
+  <script src="profile.js"></script>
+  <script src="assistant.js"></script>
+</body>
+</html>
