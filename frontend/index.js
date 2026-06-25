@@ -1283,10 +1283,23 @@ function renderNodeDetail(node) {
   if (avgConsensus < 0.70) consensusBadgeColor = 'var(--color-warning)';
   if (avgConsensus < 0.40) consensusBadgeColor = '#f43f5e';
 
+  const isMod = currentUser && (currentUser.username === 'root_moderator' || currentUser.invited_by === '00000000-0000-0000-0000-000000000001');
+  let deleteButtonHtml = '';
+  if (isMod && node.parent_id !== null) {
+    deleteButtonHtml = `
+      <button class="btn btn-danger btn-sm" onclick="deleteNodeFromDirectory(${node.id})" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 0.25rem; width: auto; cursor: pointer; margin-left: 0.5rem;">
+        🗑️ Delete Space
+      </button>
+    `;
+  }
+
   detailsCard.innerHTML = `
     <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom:0.75rem; margin-bottom:0.75rem;">
       <div>
-        <span class="badge count-badge" style="font-family:var(--font-mono); text-transform:uppercase;">${node.node_type}</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="badge count-badge" style="font-family:var(--font-mono); text-transform:uppercase;">${node.node_type}</span>
+          ${deleteButtonHtml}
+        </div>
         <h2 style="margin-top:0.25rem;">${node.name}</h2>
       </div>
       <div style="text-align:right;">
@@ -1853,6 +1866,71 @@ function initPreferences() {
     });
   }
 }
+
+window.deleteNodeFromDirectory = async function(nodeId) {
+  if (!confirm("Are you sure you want to permanently delete this directory space, including all sub-spaces and reviews?")) {
+    return;
+  }
+
+  const userKey = sessionStorage.getItem('current_user_key');
+  if (!userKey) {
+    alert("Error: You must be logged in to perform this operation.");
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.inviteonlyreviews.com/api/nodes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        authKey: userKey,
+        nodeId: nodeId
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to delete directory space.');
+    }
+
+    alert("Directory space successfully deleted from the ledger.");
+
+    // Update local DB: remove the node and all of its descendants, and all their reviews
+    loadDb();
+    
+    // Find all descendants recursively
+    const getDescendants = (id) => {
+      let desc = [];
+      const children = db.nodes.filter(n => n.parent_id === id);
+      children.forEach(c => {
+        desc.push(c.id);
+        desc = desc.concat(getDescendants(c.id));
+      });
+      return desc;
+    };
+    
+    const nodeIdsToDelete = [nodeId].concat(getDescendants(nodeId));
+    
+    // Remove nodes
+    db.nodes = db.nodes.filter(n => !nodeIdsToDelete.includes(n.id));
+    
+    // Remove reviews for those nodes
+    db.reviews = db.reviews.filter(r => !nodeIdsToDelete.includes(r.node_id));
+    
+    saveDbState();
+
+    // Reset current directory view if it was inside or equal to the deleted node
+    const isDeleted = currentDirectoryPath.some(n => nodeIdsToDelete.includes(n.id));
+    if (isDeleted) {
+      currentDirectoryPath = [];
+    }
+    
+    renderDirectoryExplorer();
+
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+};
 
 // ----------------------------------------------------
 // 10. Initialization & Listeners Setup

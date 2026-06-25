@@ -796,6 +796,60 @@ export default {
         });
       }
 
+      // Route 8b: DELETE /api/nodes
+      if (url.pathname === '/api/nodes' && request.method === 'DELETE') {
+        const { authKey, nodeId } = await request.json();
+        if (!authKey || !nodeId) {
+          return new Response(JSON.stringify({ error: 'Missing space deletion parameters.' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Invalid access key.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        if (!profile.is_active) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Account is suspended.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const isMod = profile.id === '00000000-0000-0000-0000-000000000001' || profile.invited_by === '00000000-0000-0000-0000-000000000001';
+        if (!isMod) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Only moderators/admin can delete spaces.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const deleteRes = await fetch(`${env.SUPABASE_URL}/rest/v1/nodes?id=eq.${nodeId}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+          }
+        });
+
+        if (!deleteRes.ok) {
+          const errText = await deleteRes.text();
+          return new Response(JSON.stringify({ error: `Failed to delete space: ${errText}` }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       // Route 9: POST /api/vouch
       if (url.pathname === '/api/vouch' && request.method === 'POST') {
         const { authKey, reviewId, type, allocatedWeight } = await request.json();
