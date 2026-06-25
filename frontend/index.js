@@ -811,9 +811,9 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
     let badgeLabel = '✓ Verified Experience';
     if (r.verification_method === 'exif_gps') badgeLabel = '📍 GPS Proximity Verified';
     if (r.verification_method === 'wasm_ocr') badgeLabel = '🧾 WASM Receipt OCR';
-    verifyBadge = `<span class="badge verification-status verified">${badgeLabel}</span>`;
+    verifyBadge = `<span class="badge verification-status verified" style="pointer-events: none;">${badgeLabel}</span>`;
   } else {
-    verifyBadge = `<span class="badge verification-status unverified">Unverified</span>`;
+    verifyBadge = `<span class="badge verification-status unverified" style="pointer-events: none;">Unverified</span>`;
   }
 
   let tagsHtml = '';
@@ -866,7 +866,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
       ${warningBanner}
       <div class="post-header-row" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
         <div>
-          <div class="post-path" style="font-size:0.75rem; color:var(--color-primary); font-family:var(--font-mono);">${pathString}</div>
+          <div class="post-path" style="font-size:0.75rem; color:var(--color-primary); font-family:var(--font-mono);" title="${pathString.replace(/&#x27;/g, `'`).replace(/&quot;/g, `"`).replace(/&amp;/g, `&`)}">${pathString}</div>
           <div style="display:flex; align-items:center; gap:0.25rem;">
             <h3 class="post-author" style="margin: 0.15rem 0; font-size: 0.95rem;">@${r.author?.username || 'deactivated_user'}</h3>
             ${followBtnHtml}
@@ -1589,7 +1589,7 @@ function renderNodeDetail(node) {
       let badgeLabel = '✓ Verified';
       if (r.verification_method === 'exif_gps') badgeLabel = '📍 GPS';
       if (r.verification_method === 'wasm_ocr') badgeLabel = '🧾 OCR';
-      verifyBadge = `<span class="badge verification-status verified" style="font-size:0.65rem; padding: 2px 6px;">${badgeLabel}</span>`;
+      verifyBadge = `<span class="badge verification-status verified" style="font-size:0.65rem; padding: 2px 6px; pointer-events: none;">${badgeLabel}</span>`;
     }
 
     let deleteBtnHtml = '';
