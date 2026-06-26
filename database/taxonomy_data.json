@@ -4,10 +4,533 @@
   "node_type": "root",
   "children": [
     {
-      "name": "North America",
-      "slug": "north_america",
+      "name": "Africa",
+      "slug": "africa",
       "node_type": "continent",
       "children": [
+        {
+          "name": "Algeria",
+          "slug": "algeria",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Angola",
+          "slug": "angola",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Benin",
+          "slug": "benin",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Botswana",
+          "slug": "botswana",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Burkina Faso",
+          "slug": "burkina-faso",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Burundi",
+          "slug": "burundi",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Cabo Verde",
+          "slug": "cabo-verde",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Cameroon",
+          "slug": "cameroon",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Central African Republic",
+          "slug": "central-african-republic",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Chad",
+          "slug": "chad",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Comoros",
+          "slug": "comoros",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Congo (Republic of the)",
+          "slug": "congo-republic-of-the",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Congo (Democratic Republic of the)",
+          "slug": "congo-democratic-republic-of-the",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Côte d'Ivoire",
+          "slug": "cote-divoire",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Djibouti",
+          "slug": "djibouti",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Egypt",
+          "slug": "egypt",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Equatorial Guinea",
+          "slug": "equatorial-guinea",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Eritrea",
+          "slug": "eritrea",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Eswatini",
+          "slug": "eswatini",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Ethiopia",
+          "slug": "ethiopia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Gabon",
+          "slug": "gabon",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Gambia",
+          "slug": "gambia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Ghana",
+          "slug": "ghana",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Guinea",
+          "slug": "guinea",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Guinea-Bissau",
+          "slug": "guinea-bissau",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Kenya",
+          "slug": "kenya",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Lesotho",
+          "slug": "lesotho",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Liberia",
+          "slug": "liberia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Libya",
+          "slug": "libya",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Madagascar",
+          "slug": "madagascar",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Malawi",
+          "slug": "malawi",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Mali",
+          "slug": "mali",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Mauritania",
+          "slug": "mauritania",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Mauritius",
+          "slug": "mauritius",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Morocco",
+          "slug": "morocco",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Mozambique",
+          "slug": "mozambique",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Namibia",
+          "slug": "namibia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Niger",
+          "slug": "niger",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Nigeria",
+          "slug": "nigeria",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Rwanda",
+          "slug": "rwanda",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Sao Tome and Principe",
+          "slug": "sao-tome-and-principe",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Senegal",
+          "slug": "senegal",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Seychelles",
+          "slug": "seychelles",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Sierra Leone",
+          "slug": "sierra-leone",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Somalia",
+          "slug": "somalia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "South Africa",
+          "slug": "south-africa",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "South Sudan",
+          "slug": "south-sudan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Sudan",
+          "slug": "sudan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Tanzania",
+          "slug": "tanzania",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Togo",
+          "slug": "togo",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Tunisia",
+          "slug": "tunisia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Uganda",
+          "slug": "uganda",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Zambia",
+          "slug": "zambia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Zimbabwe",
+          "slug": "zimbabwe",
+          "node_type": "country",
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "Americas",
+      "slug": "americas",
+      "node_type": "continent",
+      "children": [
+        {
+          "name": "Antigua and Barbuda",
+          "slug": "antigua-and-barbuda",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Argentina",
+          "slug": "argentina",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Bahamas",
+          "slug": "bahamas",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Barbados",
+          "slug": "barbados",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Belize",
+          "slug": "belize",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Bolivia",
+          "slug": "bolivia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Brazil",
+          "slug": "brazil",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Canada",
+          "slug": "canada",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Chile",
+          "slug": "chile",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Colombia",
+          "slug": "colombia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Costa Rica",
+          "slug": "costa-rica",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Cuba",
+          "slug": "cuba",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Dominica",
+          "slug": "dominica",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Dominican Republic",
+          "slug": "dominican-republic",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Ecuador",
+          "slug": "ecuador",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "El Salvador",
+          "slug": "el-salvador",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Grenada",
+          "slug": "grenada",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Guatemala",
+          "slug": "guatemala",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Guyana",
+          "slug": "guyana",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Haiti",
+          "slug": "haiti",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Honduras",
+          "slug": "honduras",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Jamaica",
+          "slug": "jamaica",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Mexico",
+          "slug": "mexico",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Nicaragua",
+          "slug": "nicaragua",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Panama",
+          "slug": "panama",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Paraguay",
+          "slug": "paraguay",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Peru",
+          "slug": "peru",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Saint Kitts and Nevis",
+          "slug": "saint-kitts-and-nevis",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Saint Lucia",
+          "slug": "saint-lucia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Saint Vincent and the Grenadines",
+          "slug": "saint-vincent-and-the-grenadines",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Suriname",
+          "slug": "suriname",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Trinidad and Tobago",
+          "slug": "trinidad-and-tobago",
+          "node_type": "country",
+          "children": []
+        },
         {
           "name": "United States",
           "slug": "united_states",
@@ -50,6 +573,326 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Uruguay",
+          "slug": "uruguay",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Venezuela",
+          "slug": "venezuela",
+          "node_type": "country",
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "Asia",
+      "slug": "asia",
+      "node_type": "continent",
+      "children": [
+        {
+          "name": "Afghanistan",
+          "slug": "afghanistan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Armenia",
+          "slug": "armenia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Azerbaijan",
+          "slug": "azerbaijan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Bahrain",
+          "slug": "bahrain",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Bangladesh",
+          "slug": "bangladesh",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Bhutan",
+          "slug": "bhutan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Brunei",
+          "slug": "brunei",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Cambodia",
+          "slug": "cambodia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "China",
+          "slug": "china",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Cyprus",
+          "slug": "cyprus",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Georgia",
+          "slug": "georgia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "India",
+          "slug": "india",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Indonesia",
+          "slug": "indonesia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Iran",
+          "slug": "iran",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Iraq",
+          "slug": "iraq",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Israel",
+          "slug": "israel",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Japan",
+          "slug": "japan",
+          "node_type": "country",
+          "children": [
+            {
+              "name": "Tokyo",
+              "slug": "tokyo",
+              "node_type": "state",
+              "children": [
+                {
+                  "name": "Shinjuku",
+                  "slug": "shinjuku",
+                  "node_type": "city"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Jordan",
+          "slug": "jordan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Kazakhstan",
+          "slug": "kazakhstan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Kuwait",
+          "slug": "kuwait",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Kyrgyzstan",
+          "slug": "kyrgyzstan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Laos",
+          "slug": "laos",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Lebanon",
+          "slug": "lebanon",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Malaysia",
+          "slug": "malaysia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Maldives",
+          "slug": "maldives",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Mongolia",
+          "slug": "mongolia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Myanmar",
+          "slug": "myanmar",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Nepal",
+          "slug": "nepal",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "North Korea",
+          "slug": "north-korea",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Oman",
+          "slug": "oman",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Pakistan",
+          "slug": "pakistan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Palestine",
+          "slug": "palestine",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Philippines",
+          "slug": "philippines",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Qatar",
+          "slug": "qatar",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Saudi Arabia",
+          "slug": "saudi-arabia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Singapore",
+          "slug": "singapore",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "South Korea",
+          "slug": "south-korea",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Sri Lanka",
+          "slug": "sri-lanka",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Syria",
+          "slug": "syria",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Tajikistan",
+          "slug": "tajikistan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Thailand",
+          "slug": "thailand",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Timor-Leste",
+          "slug": "timor-leste",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Turkey",
+          "slug": "turkey",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Turkmenistan",
+          "slug": "turkmenistan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "United Arab Emirates",
+          "slug": "united-arab-emirates",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Uzbekistan",
+          "slug": "uzbekistan",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Vietnam",
+          "slug": "vietnam",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Yemen",
+          "slug": "yemen",
+          "node_type": "country",
+          "children": []
         }
       ]
     },
@@ -58,6 +901,277 @@
       "slug": "europe",
       "node_type": "continent",
       "children": [
+        {
+          "name": "Albania",
+          "slug": "albania",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Andorra",
+          "slug": "andorra",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Austria",
+          "slug": "austria",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Belarus",
+          "slug": "belarus",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Belgium",
+          "slug": "belgium",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Bosnia and Herzegovina",
+          "slug": "bosnia-and-herzegovina",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Bulgaria",
+          "slug": "bulgaria",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Croatia",
+          "slug": "croatia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Czechia",
+          "slug": "czechia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Denmark",
+          "slug": "denmark",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Estonia",
+          "slug": "estonia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Finland",
+          "slug": "finland",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "France",
+          "slug": "france",
+          "node_type": "country",
+          "children": [
+            {
+              "name": "Île-de-France",
+              "slug": "ile_de_france",
+              "node_type": "state",
+              "children": [
+                {
+                  "name": "Paris",
+                  "slug": "paris",
+                  "node_type": "city"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Germany",
+          "slug": "germany",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Greece",
+          "slug": "greece",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Holy See",
+          "slug": "holy-see",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Hungary",
+          "slug": "hungary",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Iceland",
+          "slug": "iceland",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Ireland",
+          "slug": "ireland",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Italy",
+          "slug": "italy",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Latvia",
+          "slug": "latvia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Liechtenstein",
+          "slug": "liechtenstein",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Lithuania",
+          "slug": "lithuania",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Luxembourg",
+          "slug": "luxembourg",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Malta",
+          "slug": "malta",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Moldova",
+          "slug": "moldova",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Monaco",
+          "slug": "monaco",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Montenegro",
+          "slug": "montenegro",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Netherlands",
+          "slug": "netherlands",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "North Macedonia",
+          "slug": "north-macedonia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Norway",
+          "slug": "norway",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Poland",
+          "slug": "poland",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Portugal",
+          "slug": "portugal",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Romania",
+          "slug": "romania",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Russia",
+          "slug": "russia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "San Marino",
+          "slug": "san-marino",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Serbia",
+          "slug": "serbia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Slovakia",
+          "slug": "slovakia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Slovenia",
+          "slug": "slovenia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Spain",
+          "slug": "spain",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Sweden",
+          "slug": "sweden",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Switzerland",
+          "slug": "switzerland",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Ukraine",
+          "slug": "ukraine",
+          "node_type": "country",
+          "children": []
+        },
         {
           "name": "United Kingdom",
           "slug": "united_kingdom",
@@ -83,51 +1197,97 @@
               ]
             }
           ]
-        },
-        {
-          "name": "France",
-          "slug": "france",
-          "node_type": "country",
-          "children": [
-            {
-              "name": "Île-de-France",
-              "slug": "ile_de_france",
-              "node_type": "state",
-              "children": [
-                {
-                  "name": "Paris",
-                  "slug": "paris",
-                  "node_type": "city"
-                }
-              ]
-            }
-          ]
         }
       ]
     },
     {
-      "name": "Asia",
-      "slug": "asia",
+      "name": "Oceania",
+      "slug": "oceania",
       "node_type": "continent",
       "children": [
         {
-          "name": "Japan",
-          "slug": "japan",
+          "name": "Australia",
+          "slug": "australia",
           "node_type": "country",
-          "children": [
-            {
-              "name": "Tokyo",
-              "slug": "tokyo",
-              "node_type": "state",
-              "children": [
-                {
-                  "name": "Shinjuku",
-                  "slug": "shinjuku",
-                  "node_type": "city"
-                }
-              ]
-            }
-          ]
+          "children": []
+        },
+        {
+          "name": "Fiji",
+          "slug": "fiji",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Kiribati",
+          "slug": "kiribati",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Marshall Islands",
+          "slug": "marshall-islands",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Micronesia",
+          "slug": "micronesia",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Nauru",
+          "slug": "nauru",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "New Zealand",
+          "slug": "new-zealand",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Palau",
+          "slug": "palau",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Papua New Guinea",
+          "slug": "papua-new-guinea",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Samoa",
+          "slug": "samoa",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Solomon Islands",
+          "slug": "solomon-islands",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Tonga",
+          "slug": "tonga",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Tuvalu",
+          "slug": "tuvalu",
+          "node_type": "country",
+          "children": []
+        },
+        {
+          "name": "Vanuatu",
+          "slug": "vanuatu",
+          "node_type": "country",
+          "children": []
         }
       ]
     }

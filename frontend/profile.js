@@ -246,10 +246,9 @@ function showLoginGate() {
   authLinks.forEach(link => link.classList.add('hidden'));
 
   // Update status footer
-  const userDot = document.querySelector('.user-status-dot');
-  const userLabel = document.querySelector('.username-display');
-  if (userDot) userDot.className = 'user-status-dot offline';
-  if (userLabel) userLabel.innerText = 'Guest';
+  if (typeof window.syncSidebarFooter === 'function') {
+    window.syncSidebarFooter();
+  }
 }
 
 function showDashboard() {
@@ -288,10 +287,9 @@ function showDashboard() {
   authLinks.forEach(link => link.classList.remove('hidden'));
 
   // Update status footer
-  const userDot = document.querySelector('.user-status-dot');
-  const userLabel = document.querySelector('.username-display');
-  if (userDot) userDot.className = 'user-status-dot online';
-  if (userLabel) userLabel.innerText = '@' + currentUser.username;
+  if (typeof window.syncSidebarFooter === 'function') {
+    window.syncSidebarFooter();
+  }
 }
 
 function renderProfileCard() {

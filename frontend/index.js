@@ -86,11 +86,8 @@ function syncCurrentUser() {
       }
 
       // Update Header
-      if (userDot) {
-        userDot.className = 'user-status-dot online';
-      }
-      if (userLabel) {
-        userLabel.innerText = '@' + currentUser.username;
+      if (typeof window.syncSidebarFooter === 'function') {
+        window.syncSidebarFooter();
       }
 
       // Update Post Review Gates
@@ -249,11 +246,8 @@ function syncCurrentUser() {
 
   // Guest State
   currentUser = null;
-  if (userDot) {
-    userDot.className = 'user-status-dot offline';
-  }
-  if (userLabel) {
-    userLabel.innerText = 'Guest (Sign In)';
+  if (typeof window.syncSidebarFooter === 'function') {
+    window.syncSidebarFooter();
   }
   if (guestGate) guestGate.classList.remove('hidden');
   if (submitForm) submitForm.classList.add('hidden');

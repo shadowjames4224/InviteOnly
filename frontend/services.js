@@ -4,7 +4,46 @@
 // Global State Declarations (Bound to Window for page-wide global sharing)
 // ----------------------------------------------------
 window.db = undefined;
-window.currentUser = null;
+let _currentUser = null;
+Object.defineProperty(window, 'currentUser', {
+  get() {
+    return _currentUser;
+  },
+  set(val) {
+    _currentUser = val;
+    if (typeof window.syncSidebarFooter === 'function') {
+      window.syncSidebarFooter();
+    }
+  },
+  configurable: true,
+  enumerable: true
+});
+
+window.syncSidebarFooter = function() {
+  const userDot = document.querySelector('.user-status-dot');
+  const userLabel = document.querySelector('.username-display');
+  
+  if (window.currentUser && window.currentUser.is_active) {
+    if (userDot) {
+      userDot.className = 'user-status-dot online';
+    }
+    if (userLabel) {
+      userLabel.innerText = '@' + window.currentUser.username;
+    }
+  } else {
+    if (userDot) {
+      userDot.className = 'user-status-dot offline';
+    }
+    if (userLabel) {
+      const isIndexPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '';
+      userLabel.innerText = isIndexPage ? 'Guest (Sign In)' : 'Guest';
+    }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  window.syncSidebarFooter();
+});
 
 // Initialize background worker for CPU-heavy tasks (shared across all pages)
 const appWorker = new Worker('worker.js');

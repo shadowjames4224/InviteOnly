@@ -228,7 +228,6 @@
       await loadDbState();
       
       // Attempt to load current user session from API
-      let currentUser = null;
       try {
         const res = await fetch('https://api.inviteonlyreviews.com/api/auth/verify', {
           method: 'POST',
@@ -237,7 +236,7 @@
         if (res.ok) {
           const data = await res.json();
           if (data.success && data.profile && data.profile.is_active) {
-            currentUser = data.profile;
+            window.currentUser = data.profile;
           }
         }
       } catch (err) {
@@ -246,17 +245,14 @@
 
       // Update sidebar links visibility and user status footer
       const authLinks = document.querySelectorAll('.sidebar-nav a[href^="index.html"]');
-      const userDot = document.querySelector('.user-status-dot');
-      const userLabel = document.querySelector('.username-display');
 
-      if (currentUser) {
+      if (window.currentUser) {
         authLinks.forEach(link => link.classList.remove('hidden'));
-        if (userDot) userDot.className = 'user-status-dot online';
-        if (userLabel) userLabel.innerText = '@' + currentUser.username;
       } else {
         authLinks.forEach(link => link.classList.add('hidden'));
-        if (userDot) userDot.className = 'user-status-dot offline';
-        if (userLabel) userLabel.innerText = 'Guest';
+      }
+      if (typeof window.syncSidebarFooter === 'function') {
+        window.syncSidebarFooter();
       }
     }
     initGuidePage();
