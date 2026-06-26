@@ -1217,28 +1217,50 @@ export default {
 
       // New Route: POST /api/auth/verify
       if (url.pathname === '/api/auth/verify' && request.method === 'POST') {
-        const authKey = await getAuthKey(request);
+        let authKey = null;
+
+        // 1. Try to read from JSON body (Manual Login)
+        const contentType = request.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          try {
+            const body = await request.json();
+            if (body && body.authKey) {
+              authKey = body.authKey;
+            }
+          } catch (e) {
+            // Body might be empty, ignore parse error
+          }
+        }
+
+        // 2. Fall back to Cookie header (Session Restore on page load)
         if (!authKey) {
-          return new Response(JSON.stringify({ error: 'Missing authKey.' }), {
+          authKey = await getAuthKey(request);
+        }
+
+        if (!authKey) {
+          return new Response(JSON.stringify({ error: "Missing authKey." }), {
             status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
+
         const profile = await authenticateUser(authKey, env);
         if (!profile) {
-          return new Response(JSON.stringify({ error: 'Invalid credentials.' }), {
+          return new Response(JSON.stringify({ error: "Invalid credentials." }), {
             status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
-        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
+
+        const secureFlag = env.ENVIRONMENT === "production" || url.protocol === "https:" ? "; Secure" : "";
         const cookieVal = `current_user_key=${authKey}; HttpOnly; SameSite=Strict; Path=/${secureFlag}`;
+        
         return new Response(JSON.stringify({ success: true, profile }), {
           status: 200,
           headers: new Headers({
             ...corsHeaders,
-            'Content-Type': 'application/json',
-            'Set-Cookie': cookieVal
+            "Content-Type": "application/json",
+            "Set-Cookie": cookieVal
           })
         });
       }
