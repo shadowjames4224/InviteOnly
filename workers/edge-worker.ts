@@ -1569,7 +1569,7 @@ async function authenticateUser(authKey, env) {
   }
 
   try {
-    const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=id,username,is_active,invited_by,role,access_key_hash`, {
+    const profileRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?username=eq.${username}&select=*`, {
       method: 'GET',
       headers: {
         'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
