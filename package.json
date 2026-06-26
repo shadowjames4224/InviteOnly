@@ -6,10 +6,10 @@
     "start": "python3 -m http.server 8080 --directory frontend",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:migrate": "node database/migrate.js",
+    "db:migrate": "node database/preflight.js && node database/migrate.js",
     "worker:install": "cd workers && npm install",
     "worker:dev": "cd workers && npm run dev",
-    "worker:deploy": "cd workers && npm run deploy",
+    "worker:deploy": "read -p \"WARNING: You are about to deploy to production. Ensure local DB state is backed up. Continue? (y/n) \" response && ( [ \"\\$response\" = \"y\" ] || [ \"\\$response\" = \"Y\" ] ) && cd workers && npm run deploy",
     "worker:typecheck": "cd workers && npm run typecheck"
   },
   "keywords": [

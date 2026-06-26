@@ -710,7 +710,7 @@ export default {
             p_node_id: review.node_id || null,
             p_parent_node_id: parentNodeId ? parseInt(parentNodeId) : null,
             p_new_nodes: newNodes && newNodes.length > 0 ? newNodes : null,
-            p_raw_content: review.raw_content,
+            p_raw_content: sanitizeInput(review.raw_content),
             p_is_verified: review.is_verified_experience,
             p_verification_method: review.verification_method || null,
             p_param_1: review.param_val_1 || null,
@@ -1341,7 +1341,7 @@ export default {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            raw_content: newContent
+            raw_content: sanitizeInput(newContent)
           })
         });
         if (!updateRes.ok) {
@@ -1384,7 +1384,7 @@ export default {
           body: JSON.stringify({
             author_id: profile.id,
             review_id: reviewId,
-            content: content
+            content: sanitizeInput(content)
           })
         });
         if (!commentRes.ok) {
@@ -1540,6 +1540,11 @@ async function getAuthKey(request) {
     if (match) authKey = match[1];
   }
   return authKey;
+}
+
+function sanitizeInput(text) {
+  if (typeof text !== 'string') return '';
+  return text.replace(/<[^>]*>/g, '').trim();
 }
 
 async function hashKey(key) {
