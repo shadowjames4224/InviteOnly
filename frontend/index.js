@@ -2091,7 +2091,7 @@ function initReviewSubmission() {
           method = method ? `${method},wasm_ocr` : 'wasm_ocr';
         }
 
-        const newReviewId = '00000000-0000-0000-0000-000000' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+        const newReviewId = crypto.randomUUID();
         
         const newReview = {
           id: newReviewId,

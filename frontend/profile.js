@@ -1648,7 +1648,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
       method = method ? `${method},wasm_ocr` : 'wasm_ocr';
     }
 
-    const newId = '00000000-0000-0000-0000-000000' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    const newId = crypto.randomUUID();
     
     const newReview = {
       id: newId,
@@ -3016,7 +3016,7 @@ document.getElementById('btn-admin-create-user')?.addEventListener('click', asyn
     }
   }
 
-  const newId = crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+  const newId = crypto.randomUUID();
   const accessKey = `key_${usernameInput}_${suffix}`;
 
   const newProfile = {

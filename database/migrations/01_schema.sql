@@ -1,12 +1,9 @@
 -- Enable necessary relational extensions
-
--- Enable necessary relational extensions
 CREATE EXTENSION IF NOT EXISTS ltree;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Define user profile partition table
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username VARCHAR(50) UNIQUE NOT NULL CHECK (username ~* '^[A-Za-z0-9_]{3,50}$'),
     reputation_score NUMERIC(12, 4) NOT NULL DEFAULT 1.0000 CHECK (reputation_score >= 0.0000),
     invited_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -36,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public.nodes (
 
 -- Define decoupled graph tables for taxonomy
 CREATE TABLE IF NOT EXISTS public.global_entities (
-    entity_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    entity_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     category VARCHAR(255) NOT NULL,
     reference_specification_uri VARCHAR(255),
@@ -44,14 +41,14 @@ CREATE TABLE IF NOT EXISTS public.global_entities (
 );
 
 CREATE TABLE IF NOT EXISTS public.parameterized_archetypes (
-    archetype_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    archetype_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     parent_entity_id UUID NOT NULL REFERENCES public.global_entities(entity_id) ON DELETE CASCADE,
     archetype_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS public.execution_instances (
-    instance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    instance_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     global_entity_id UUID NOT NULL REFERENCES public.global_entities(entity_id) ON DELETE CASCADE,
     current_archetype_id UUID REFERENCES public.parameterized_archetypes(archetype_id) ON DELETE SET NULL,
     location_name VARCHAR(255) NOT NULL,
@@ -68,7 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_parent_id ON public.nodes(parent_id);
 
 -- Define invite token logic
 CREATE TABLE IF NOT EXISTS public.invite_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     token_hash VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 representation
     inviter_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     is_used BOOLEAN NOT NULL DEFAULT FALSE,
@@ -82,7 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_invites_active ON public.invite_tokens(inviter_id
 
 -- Define immutable review table
 CREATE TABLE IF NOT EXISTS public.reviews (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     node_id BIGINT NOT NULL REFERENCES public.nodes(id) ON DELETE CASCADE,
     execution_instance_id UUID REFERENCES public.execution_instances(instance_id) ON DELETE SET NULL,
     author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
@@ -101,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_reviews_author ON public.reviews(author_id);
 
 -- Define Vouch / Dispute consensus table
 CREATE TABLE IF NOT EXISTS public.vouches_disputes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     review_id UUID NOT NULL REFERENCES public.reviews(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
     type VARCHAR(10) NOT NULL CHECK (type IN ('vouch', 'dispute')),
