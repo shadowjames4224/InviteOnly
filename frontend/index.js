@@ -8,6 +8,7 @@ let activeTagFilter = null;
 let currentDirectoryPath = []; // Array of node objects representing breadcrumb trail
 let selectedUserId = null;
 let uploadedFiles = [];
+let managementModeActive = false;
 
 function loadFollows() {
   return window.follows || [];
@@ -71,6 +72,15 @@ function syncCurrentUser() {
       el.classList.add('hidden');
     }
   });
+
+  const btnToggleMgmt = document.getElementById('btn-toggle-management-mode');
+  if (btnToggleMgmt) {
+    if (isAdmin) {
+      btnToggleMgmt.classList.remove('hidden');
+    } else {
+      btnToggleMgmt.classList.add('hidden');
+    }
+  }
 
   if (currentUser) {
     // Offline safeguard check (deactivated in sandbox)
@@ -1255,13 +1265,25 @@ function renderDirectoryExplorer() {
     if (child.node_type === 'fishing_spot') typeIcon = '🎣';
     if (child.node_type === 'point_of_interest') typeIcon = '📍';
 
+    let managementButtonsHtml = '';
+    const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
+    if (managementModeActive && isModerator && child.parent_id !== null) {
+      managementButtonsHtml = `
+        <div class="mgmt-actions" style="margin-left: auto; display: flex; gap: 0.25rem;">
+          <button class="btn btn-warning btn-sm btn-relocate" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; width: auto; height: auto;">Relocate</button>
+          <button class="btn btn-danger btn-sm btn-delete" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; width: auto; height: auto;">Delete</button>
+        </div>
+      `;
+    }
+
     card.innerHTML = `
-      <div style="display:flex; align-items:center; gap:0.75rem;">
+      <div style="display:flex; align-items:center; gap:0.75rem; width: 100%;">
         <span style="font-size:1.5rem;">${typeIcon}</span>
         <div style="display:flex; flex-direction:column;">
           <strong style="font-size:0.95rem; color:#e4e4e7;">${sanitizeHTML(child.name)}</strong>
           <span style="font-size:0.72rem; color:#71717a; text-transform:uppercase; font-family:var(--font-mono);">${child.node_type}</span>
         </div>
+        ${managementButtonsHtml}
       </div>
     `;
 
@@ -1275,6 +1297,44 @@ function renderDirectoryExplorer() {
         renderNodeDetail(child);
       }
     });
+
+    const btnRelocate = card.querySelector('.btn-relocate');
+    const btnDelete = card.querySelector('.btn-delete');
+
+    if (btnRelocate) {
+      btnRelocate.addEventListener('click', async (e) => {
+        e.stopPropagation(); // Prevent card navigation click
+        
+        // Relocate (Merge) Action
+        if (!await showConfirm(`Are you sure you want to relocate/merge the space "${child.name}"?`, "Confirm Relocation")) {
+          return;
+        }
+        
+        const targetIdStr = prompt(`Enter the ID of the canonical target category/merchant to merge "${child.name}" into:`);
+        if (targetIdStr === null) return;
+        
+        const targetId = parseInt(targetIdStr.trim());
+        if (isNaN(targetId)) {
+          alert("Error: Target ID must be a valid integer.");
+          return;
+        }
+        
+        await window.mergeNodeInDirectory(child.id, targetId);
+      });
+    }
+
+    if (btnDelete) {
+      btnDelete.addEventListener('click', async (e) => {
+        e.stopPropagation(); // Prevent card navigation click
+        
+        // Delete Action
+        if (!await showConfirm(`Are you sure you want to permanently delete the space "${child.name}" and all of its contents?`, "Confirm Deletion")) {
+          return;
+        }
+        
+        await window.deleteNodeFromDirectory(child.id);
+      });
+    }
 
     fragment.appendChild(card);
   });
@@ -1880,7 +1940,16 @@ function initReviewSubmission() {
               const parentPath = parentNode ? parentNode.path : '';
               const nodePathString = parentPath ? `${parentPath}.${nextId}` : `${nextId}`;
 
-              const type = isLeaf ? leafNodeType : 'category';
+              let type = isLeaf ? leafNodeType : 'category';
+              if (!isLeaf) {
+                if (parentNode) {
+                  if (parentNode.node_type === 'state') {
+                    type = 'city';
+                  } else if (parentNode.node_type === 'city') {
+                    type = 'neighborhood';
+                  }
+                }
+              }
 
               const newNode = {
                 id: nextId,
@@ -1891,7 +1960,8 @@ function initReviewSubmission() {
                 path: nodePathString,
                 address: isLeaf && address ? address : null,
                 coordinates: isLeaf && coords ? coords : null,
-                aliases: isLeaf ? aliasesList : []
+                aliases: isLeaf ? aliasesList : [],
+                needs_taxonomy_review: (type === 'city')
               };
 
               db.nodes.push(newNode);
@@ -2214,12 +2284,14 @@ window.deleteNodeFromDirectory = async function(nodeId) {
   }
 };
 
-window.mergeNodeInDirectory = async function(nodeId) {
+window.mergeNodeInDirectory = async function(nodeId, targetId = null) {
   // NOTE: The Edge Worker / Backend must independently verify the authKey and check for
   // key_root_moderator or moderator role prior to execution. Do not rely solely on frontend client checks.
-  const targetIdStr = prompt("Enter the ID of the canonical target category/merchant to merge this space into:");
-  if (targetIdStr === null) return;
-  const targetId = parseInt(targetIdStr.trim());
+  if (targetId === null) {
+    const targetIdStr = prompt("Enter the ID of the canonical target category/merchant to merge this space into:");
+    if (targetIdStr === null) return;
+    targetId = parseInt(targetIdStr.trim());
+  }
   if (isNaN(targetId)) {
     alert("Error: Target ID must be a number.");
     return;
@@ -2327,6 +2399,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   syncCurrentUser();
+
+  // Set up Unlock Management Mode button
+  const btnToggleMgmt = document.getElementById('btn-toggle-management-mode');
+  if (btnToggleMgmt) {
+    btnToggleMgmt.addEventListener('click', () => {
+      managementModeActive = !managementModeActive;
+      if (managementModeActive) {
+        btnToggleMgmt.innerText = 'Lock Management Mode';
+        btnToggleMgmt.style.background = 'var(--color-primary)';
+      } else {
+        btnToggleMgmt.innerText = 'Unlock Management Mode';
+        btnToggleMgmt.style.background = '';
+      }
+      renderDirectoryExplorer();
+    });
+  }
+
   initTabNavigation();
   initDropdownTypeaheadFilter();
   initReviewSubmission();

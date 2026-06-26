@@ -28,8 +28,8 @@ BEGIN
     WHERE token_hash = p_token_hash;
 
     -- Generate user profile linked to the inviter
-    INSERT INTO public.profiles (username, invited_by, reputation_score)
-    VALUES (p_username, v_inviter_id, 1.0000)
+    INSERT INTO public.profiles (username, invited_by, reputation_score, access_key_hash)
+    VALUES (p_username, v_inviter_id, 1.0000, p_password_hash)
     RETURNING id, username, reputation_score INTO v_new_user_id, p_username, v_profile_data;
 
     RETURN jsonb_build_object(

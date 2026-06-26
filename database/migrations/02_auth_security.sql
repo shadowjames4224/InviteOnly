@@ -1,5 +1,5 @@
 -- Add access_key_hash column to profiles table for secure authentication
-ALTER TABLE public.profiles ADD COLUMN access_key_hash VARCHAR(255);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS access_key_hash VARCHAR(255);
 
 -- Update the RPC to insert the password hash into access_key_hash
 CREATE OR REPLACE FUNCTION public.execute_secure_registration(

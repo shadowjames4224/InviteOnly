@@ -1,0 +1,135 @@
+{
+  "name": "Earth",
+  "slug": "earth",
+  "node_type": "root",
+  "children": [
+    {
+      "name": "North America",
+      "slug": "north_america",
+      "node_type": "continent",
+      "children": [
+        {
+          "name": "United States",
+          "slug": "united_states",
+          "node_type": "country",
+          "children": [
+            {
+              "name": "Texas",
+              "slug": "texas",
+              "node_type": "state",
+              "children": [
+                {
+                  "name": "Austin",
+                  "slug": "austin",
+                  "node_type": "city",
+                  "children": [
+                    {
+                      "name": "Downtown Austin",
+                      "slug": "downtown_austin",
+                      "node_type": "neighborhood"
+                    }
+                  ]
+                },
+                {
+                  "name": "Houston",
+                  "slug": "houston",
+                  "node_type": "city"
+                }
+              ]
+            },
+            {
+              "name": "California",
+              "slug": "california",
+              "node_type": "state",
+              "children": [
+                {
+                  "name": "San Francisco",
+                  "slug": "san_francisco",
+                  "node_type": "city"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Europe",
+      "slug": "europe",
+      "node_type": "continent",
+      "children": [
+        {
+          "name": "United Kingdom",
+          "slug": "united_kingdom",
+          "node_type": "country",
+          "children": [
+            {
+              "name": "England",
+              "slug": "england",
+              "node_type": "state",
+              "children": [
+                {
+                  "name": "London",
+                  "slug": "london",
+                  "node_type": "city",
+                  "children": [
+                    {
+                      "name": "Westminster",
+                      "slug": "westminster",
+                      "node_type": "neighborhood"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "France",
+          "slug": "france",
+          "node_type": "country",
+          "children": [
+            {
+              "name": "Île-de-France",
+              "slug": "ile_de_france",
+              "node_type": "state",
+              "children": [
+                {
+                  "name": "Paris",
+                  "slug": "paris",
+                  "node_type": "city"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Asia",
+      "slug": "asia",
+      "node_type": "continent",
+      "children": [
+        {
+          "name": "Japan",
+          "slug": "japan",
+          "node_type": "country",
+          "children": [
+            {
+              "name": "Tokyo",
+              "slug": "tokyo",
+              "node_type": "state",
+              "children": [
+                {
+                  "name": "Shinjuku",
+                  "slug": "shinjuku",
+                  "node_type": "city"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

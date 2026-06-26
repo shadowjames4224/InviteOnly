@@ -176,8 +176,12 @@ Ask me things like:
     // City & Category search
     let recommendations = [];
     currentDb.nodes.forEach(node => {
-      // Look for leaf node types
-      if (['merchant', 'item', 'fishing_spot', 'point_of_interest', 'execution_instance'].includes(node.node_type)) {
+      // Match both geographical/regional containers and leaf nodes
+      const allowedTypes = [
+        'root', 'continent', 'country', 'state', 'city', 'neighborhood',
+        'merchant', 'item', 'fishing_spot', 'point_of_interest', 'execution_instance'
+      ];
+      if (allowedTypes.includes(node.node_type)) {
         // Build breadcrumb string
         let parts = [];
         let curr = node;

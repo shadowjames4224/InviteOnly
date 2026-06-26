@@ -65,6 +65,14 @@
             <span class="btn-icon">⚙️</span> Settings
           </button>
         </div>
+
+        <!-- Group 5: Governance -->
+        <div class="nav-group">
+          <div class="nav-group-title">Governance</div>
+          <a href="guide.html" class="nav-link-btn">
+            <span class="btn-icon">📖</span> User Handbook
+          </a>
+        </div>
       </nav>
 
       <!-- User status shortcut anchored at bottom -->
@@ -175,9 +183,12 @@
         
         <!-- Directory Navigation Sidebar -->
         <div class="card directory-nav-card">
-          <div class="card-header">
-            <h2>Explore Directory</h2>
-            <span class="badge count-badge" id="directory-nodes-count">0 items</span>
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <h2>Explore Directory</h2>
+              <span class="badge count-badge" id="directory-nodes-count">0 items</span>
+            </div>
+            <button id="btn-toggle-management-mode" class="btn btn-warning hidden" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; width: auto; height: auto;">Unlock Management Mode</button>
           </div>
           <p class="card-desc">Navigate regional categories, items, and registered merchants.</p>
           

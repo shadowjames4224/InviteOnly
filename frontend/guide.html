@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Governance Handbook - InviteOnly Network</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=2">
+  <!-- MathJax for rendering math formulas beautifully -->
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Left Fixed Vertical Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-brand" onclick="location.href='home.html'" style="cursor: pointer;">
+        <span class="logo-icon">✦</span>
+        <h2>IOR</h2>
+      </div>
+      
+      <!-- Navigation Tabs -->
+      <nav class="sidebar-nav">
+        <!-- Group 1: Explore -->
+        <div class="nav-group">
+          <div class="nav-group-title">Explore</div>
+          <a href="index.html?tab=feed-view" class="nav-link-btn">
+            <span class="btn-icon">🏠</span> Home
+          </a>
+          <a href="index.html?tab=browse-view" class="nav-link-btn">
+            <span class="btn-icon">📁</span> Directory
+          </a>
+        </div>
+
+        <!-- Group 2: Community -->
+        <div class="nav-group">
+          <div class="nav-group-title">Community</div>
+          <a href="index.html?tab=following-view" class="nav-link-btn">
+            <span class="btn-icon">👥</span> Following Feed
+          </a>
+          <a href="index.html?tab=users-view" class="nav-link-btn">
+            <span class="btn-icon">🔍</span> Search Users
+          </a>
+        </div>
+
+        <!-- Group 3: Write -->
+        <div class="nav-group">
+          <div class="nav-group-title">Write</div>
+          <a href="index.html?tab=submit-view" class="nav-link-btn">
+            <span class="btn-icon">📝</span> Post Review
+          </a>
+        </div>
+
+        <!-- Group 4: Account -->
+        <div class="nav-group">
+          <div class="nav-group-title">Account</div>
+          <a href="profile.html" class="nav-link-btn">
+            <span class="btn-icon">👤</span> My Profile
+          </a>
+          <a href="index.html?tab=settings-view" class="nav-link-btn">
+            <span class="btn-icon">⚙️</span> Settings
+          </a>
+        </div>
+
+        <!-- Group 5: Governance -->
+        <div class="nav-group">
+          <div class="nav-group-title">Governance</div>
+          <a href="guide.html" class="nav-link-btn active">
+            <span class="btn-icon">📖</span> User Handbook
+          </a>
+        </div>
+      </nav>
+
+      <!-- User status shortcut anchored at bottom -->
+      <div class="sidebar-footer">
+        <div class="user-badge-shortcut" id="header-user-status" onclick="location.href='profile.html'" style="cursor: pointer;">
+          <span class="user-status-dot offline"></span>
+          <span class="username-display">Guest</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main-content">
+      <div class="profile-container">
+        
+        <!-- Header -->
+        <header class="dashboard-header" style="margin-bottom: 2rem;">
+          <div class="header-text">
+            <span class="badge privacy-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: rgba(168, 85, 247, 0.3);">IOR Standard Protocols</span>
+            <h2 style="font-family: var(--font-heading); font-size: 2.25rem; font-weight: 800; background: linear-gradient(135deg, #fff 30%, #a1a1aa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: 0.5rem;">Governance Handbook</h2>
+            <p style="color: var(--color-text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Understanding the mechanisms of community trust, verification, and taxonomic consensus.</p>
+          </div>
+        </header>
+
+        <!-- Handbook Content Grid -->
+        <div class="profile-grid" style="grid-template-columns: 1fr; gap: 2rem;">
+          
+          <!-- 1. Proof of Experience (PoE) Card -->
+          <section class="card relative-card">
+            <div class="card-glow" style="background: radial-gradient(circle at 20% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 60%);"></div>
+            <div class="card-header-row" style="display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+              <span style="font-size: 2rem;">🛡️</span>
+              <div>
+                <h3 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--color-text-main); margin: 0;">Proof of Experience (PoE)</h3>
+                <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0;">Automated and cryptographic telemetry validation</p>
+              </div>
+            </div>
+            
+            <p style="line-height: 1.6; margin-bottom: 1rem;">
+              To counter fake reviews and bad-faith manipulation, InviteOnly employs a modular <strong>Proof-of-Experience (PoE)</strong> pipeline. Authors can attach cryptographic and sensor telemetry to certify that their experience occurred at the specific time and location:
+            </p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 1.5rem;">
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-sm);">
+                <h4 style="font-family: var(--font-heading); font-size: 0.95rem; color: var(--color-primary); margin-top: 0; margin-bottom: 0.5rem;">📍 GPS Metadata Checks</h4>
+                <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0;">
+                  Validates EXIF location header data in uploaded photos to confirm geographic proximity to the merchant coordinates.
+                </p>
+              </div>
+              
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-sm);">
+                <h4 style="font-family: var(--font-heading); font-size: 0.95rem; color: var(--color-success); margin-top: 0; margin-bottom: 0.5rem;">🧾 WASM OCR Parsing</h4>
+                <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0;">
+                  Runs client-side optical character recognition (OCR) on receipt images to extract timestamps and match merchant names.
+                </p>
+              </div>
+              
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: var(--radius-sm);">
+                <h4 style="font-family: var(--font-heading); font-size: 0.95rem; color: #60a5fa; margin-top: 0; margin-bottom: 0.5rem;">🔒 Secure Enclave</h4>
+                <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0;">
+                  Generates platform-attested cryptographic signatures confirming transaction integrity directly from compatible client hardware.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- 2. Trust Consensus Formula Card -->
+          <section class="card relative-card">
+            <div class="card-glow" style="background: radial-gradient(circle at 80% 20%, rgba(34, 197, 94, 0.08) 0%, transparent 60%);"></div>
+            <div class="card-header-row" style="display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+              <span style="font-size: 2rem;">⚖️</span>
+              <div>
+                <h3 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--color-text-main); margin: 0;">Trust Consensus Score (\(\theta\))</h3>
+                <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0;">Reputation-weighted voting math</p>
+              </div>
+            </div>
+
+            <p style="line-height: 1.6; margin-bottom: 1.5rem;">
+              Rather than using simple average ratings, the visibility of every review on the ledger is governed by a reputation-weighted consensus algorithm. Active users can either <strong>Vouch</strong> (\(+\)) or <strong>Dispute</strong> (\(-\)) reviews. 
+            </p>
+
+            <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1.5rem; margin-bottom: 1.5rem; text-align: center;">
+              <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0; margin-bottom: 1rem;">Consensus Ratio Formula</p>
+              <div style="font-size: 1.5rem; font-family: var(--font-mono); color: white; margin: 1rem 0;">
+                $$\theta = \frac{W_v}{W_v + W_d}$$
+              </div>
+              <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0; margin-top: 1rem;">
+                Where \(W_v\) is the total weighted sum of Vouches and \(W_d\) is the total weighted sum of Disputes.
+              </p>
+            </div>
+
+            <h4 style="font-family: var(--font-heading); font-size: 1.05rem; color: var(--color-text-main); margin-bottom: 0.75rem;">Consensus Rules:</h4>
+            <ul style="line-height: 1.6; margin-left: 1.5rem; color: var(--color-text-muted); font-size: 0.9rem;">
+              <li style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--color-text-main);">Voter Weights:</strong> A vote's base weight is equal to the voter's active <span style="font-family: var(--font-mono); color: var(--color-primary);">reputation_score</span>. Higher reputation users have significantly more weight in resolving disputes.
+              </li>
+              <li style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--color-text-main);">Lineage Collusion Penalty:</strong> To deter sybil attack rings and invite-tree collusions, if a voter exists in the referral/invite chain of the review author, the vote's weight is automatically penalized:
+                <div style="font-family: var(--font-mono); background: rgba(255,255,255,0.03); padding: 0.25rem 0.5rem; display: inline-block; border-radius: var(--radius-sm); margin-top: 0.25rem; font-size: 0.8rem;">
+                  Weight = Base Weight * 0.50
+                </div>
+              </li>
+              <li style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--color-text-main);">Consensus Thresholds:</strong>
+                <ul style="margin-top: 0.25rem; margin-left: 1.25rem; list-style-type: circle;">
+                  <li><strong>High Trust (\(\theta \ge 0.70\)):</strong> Fully visible with verified badges.</li>
+                  <li><strong>Contested (\(0.40 \le \theta < 0.70\)):</strong> Marked with warning banner notifying users of split consensus.</li>
+                  <li><strong>Low Consensus (\(\theta < 0.40\)):</strong> Automatically collapsed, blurred, and filtered by default.</li>
+                </ul>
+              </li>
+            </ul>
+          </section>
+
+          <!-- 3. Soft Validation & Taxonomy Card -->
+          <section class="card relative-card">
+            <div class="card-glow" style="background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.06) 0%, transparent 60%);"></div>
+            <div class="card-header-row" style="display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+              <span style="font-size: 2rem;">🗺️</span>
+              <div>
+                <h3 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--color-text-main); margin: 0;">Geographic Taxonomy & Soft Validation</h3>
+                <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0;">Zero-friction submission with community review</p>
+              </div>
+            </div>
+
+            <p style="line-height: 1.6; margin-bottom: 1rem;">
+              InviteOnly organizes all reviews within a global geographical hierarchy: 
+              <span style="font-family: var(--font-mono); color: var(--color-primary); font-size: 0.85rem;">Earth &rarr; Continent &rarr; Country &rarr; State/Province &rarr; City &rarr; Neighborhood</span>.
+            </p>
+            
+            <p style="line-height: 1.6; margin-bottom: 1.25rem;">
+              To prevent locking users out of submitting reviews for locations not yet seeded in our taxonomy, IOR implements a <strong>Soft Validation</strong> protocol:
+            </p>
+
+            <div style="background: rgba(255, 180, 0, 0.05); border: 1px solid rgba(255, 180, 0, 0.2); padding: 1.25rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
+              <h4 style="color: #fbbf24; font-family: var(--font-heading); font-size: 0.95rem; margin-top: 0; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>⚠️</span> Soft Validation Mode
+              </h4>
+              <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0;">
+                If a city node specified in a review does not exist in the seeded taxonomy, the system will not block the submission. The submission is accepted, and the new city node is created dynamically but flagged as <strong>"Needs Taxonomy Review"</strong>. Moderators will verify and merge it into the correct hierarchical lineage behind the scenes.
+              </p>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="services.js"></script>
+  <script>
+    async function initGuidePage() {
+      await loadDbState();
+      
+      // Attempt to load current user session from API
+      let currentUser = null;
+      try {
+        const res = await fetch('https://api.inviteonlyreviews.com/api/auth/verify', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.profile && data.profile.is_active) {
+            currentUser = data.profile;
+          }
+        }
+      } catch (err) {
+        console.error("Session verification failed on guide page:", err);
+      }
+
+      // Update sidebar links visibility and user status footer
+      const authLinks = document.querySelectorAll('.sidebar-nav a[href^="index.html"]');
+      const userDot = document.querySelector('.user-status-dot');
+      const userLabel = document.querySelector('.username-display');
+
+      if (currentUser) {
+        authLinks.forEach(link => link.classList.remove('hidden'));
+        if (userDot) userDot.className = 'user-status-dot online';
+        if (userLabel) userLabel.innerText = '@' + currentUser.username;
+      } else {
+        authLinks.forEach(link => link.classList.add('hidden'));
+        if (userDot) userDot.className = 'user-status-dot offline';
+        if (userLabel) userLabel.innerText = 'Guest';
+      }
+    }
+    initGuidePage();
+  </script>
+</body>
+</html>

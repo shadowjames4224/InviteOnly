@@ -1420,7 +1420,17 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
           const newPath = parentPath ? `${parentPath}.${nextId}` : `${nextId}`;
 
           // intermediate nodes are 'category', leaf node has selected type
-          const type = isLeaf ? leafType : 'category';
+          let type = isLeaf ? leafType : 'category';
+          if (!isLeaf) {
+            const parentNode = db.nodes.find(n => n.id === currentParentId);
+            if (parentNode) {
+              if (parentNode.node_type === 'state') {
+                type = 'city';
+              } else if (parentNode.node_type === 'city') {
+                type = 'neighborhood';
+              }
+            }
+          }
 
           const newNode = {
             id: nextId,
@@ -1430,7 +1440,8 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
             node_type: type,
             path: newPath,
             address: isLeaf && address ? address : null,
-            coordinates: isLeaf && coords ? coords : null
+            coordinates: isLeaf && coords ? coords : null,
+            needs_taxonomy_review: (type === 'city')
           };
 
           if (isLeaf && globalEntityId) {
