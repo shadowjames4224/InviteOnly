@@ -1,8 +1,7 @@
 // index.js - Production Portal Logic
 // Handles tab navigation, forum feed rendering, tag filtering, directory explorer, and user settings
 
-let db;
-let currentUser = null;
+// db and currentUser are defined globally in services.js
 let activeTagFilter = null;
 let currentDirectoryPath = []; // Array of node objects representing breadcrumb trail
 let selectedUserId = null;
@@ -31,137 +30,7 @@ function getEditDistance(a, b) {
   return matrix[b.length][a.length];
 }
 
-// Seed Data Fallback (client-side mock DB)
-function getSeedData() {
-  return {
-    version: 2,
-    profiles: [
-      { id: '00000000-0000-0000-0000-000000000001', username: 'root_moderator', reputation_score: 1.0000, base_reputation: 1.0000, invited_by: null, is_active: true, access_key: 'key_root_moderator', role: 'key_root_moderator' }
-    ],
-    nodes: [
-      { id: 1, parent_id: null, name: 'Earth', slug: 'earth', node_type: 'planet', path: '1' },
-      { id: 2, parent_id: 1, name: 'United States', slug: 'united_states', node_type: 'country', path: '1.2' },
-      { id: 3, parent_id: 2, name: 'Texas', slug: 'texas', node_type: 'state', path: '1.2.3' },
-      { id: 4, parent_id: 3, name: 'Austin', slug: 'austin', node_type: 'city', path: '1.2.3.4' },
-      { id: 5, parent_id: 4, name: 'Coffee Shops', slug: 'coffee_shops', node_type: 'category', path: '1.2.3.4.5' },
-      { id: 6, parent_id: 5, name: 'Classic Coffee', slug: 'classic_coffee', node_type: 'merchant', path: '1.2.3.4.5.6', address: "221 North Loop Blvd, Austin, TX", coordinates: "30.3184° N, 97.7245° W" },
-      { id: 7, parent_id: 5, name: 'Downtown Cafe', slug: 'downtown_cafe', node_type: 'merchant', path: '1.2.3.4.5.7', address: "3504 Menchaca Rd, Austin, TX", coordinates: "30.2335° N, 97.7858° W" },
-      { id: 8, parent_id: 6, name: 'Cold Brew Coffee', slug: 'cold_brew_coffee', node_type: 'item', path: '1.2.3.4.5.6.8' }
-    ],
-    global_entities: [
-      { id: 'ge_macchiato', name: 'Iced Caramel Macchiato', category: 'Coffee' },
-      { id: 'ge_gpu_x', name: 'Silicon Core GPU-X', category: 'Hardware' },
-      { id: 'ge_fishing_pool', name: 'Silver Creek Fishing Pool', category: 'Outdoor Recreation' }
-    ],
-    execution_instances: [
-      { id: 'ei_macchiato_402', global_entity_id: 'ge_macchiato', current_archetype_id: 'arch_iced_macchiato', location_name: 'Classic Coffee - Franchise #402', address: '221 North Loop Blvd, Austin, TX', coordinates: '30.3184, -97.7245', gps_dop: 1.0 },
-      { id: 'ei_gpu_fab12', global_entity_id: 'ge_gpu_x', current_archetype_id: 'arch_gpu_7nm', location_name: 'Foundry Fab #12', address: 'Phoenix, AZ', coordinates: '33.4484, -112.0740', gps_dop: 1.0 },
-      { id: 'ei_silver_creek', global_entity_id: 'ge_fishing_pool', current_archetype_id: 'arch_stream_winter', location_name: 'Picabo Stream Pool', address: 'Picabo, ID', coordinates: '43.3275, -114.1685', gps_dop: 1.0 }
-    ],
-    invite_tokens: [],
-    reviews: [],
-    vouches_disputes: [],
-    tags: [
-      { id: 1, name: 'third wave coffee shop' },
-      { id: 2, name: 'fishing' },
-      { id: 3, name: 'EDC gear' },
-      { id: 4, name: 'outdoor recreation' }
-    ],
-    review_tags: []
-  };
-}
-
-// ----------------------------------------------------
-// 1. Initial State Database Load
-// ----------------------------------------------------
-function loadDb() {
-  const storedDb = localStorage.getItem('review_network_db');
-  let parsed = null;
-  if (storedDb) {
-    try {
-      parsed = JSON.parse(storedDb);
-    } catch (e) {
-      parsed = null;
-    }
-  }
-
-  // Force-wipe check if version is not 2
-  if (parsed && parsed.version !== 2) {
-    parsed = null;
-    localStorage.removeItem('review_network_db');
-  }
-
-  const seed = getSeedData();
-  if (!parsed || !parsed.profiles || !parsed.nodes || !parsed.invite_tokens || !parsed.reviews || !parsed.vouches_disputes) {
-    db = seed;
-    localStorage.setItem('review_network_db', JSON.stringify(db));
-  } else {
-    db = parsed;
-    
-    // Ensure tags and review_tags collections exist in loaded DB state
-    if (!db.tags) db.tags = seed.tags;
-    if (!db.review_tags) db.review_tags = seed.review_tags;
-    
-    // Auto-migrate keys
-    let migrated = false;
-    db.profiles.forEach(p => {
-      if (!p.access_key) {
-        p.access_key = 'key_' + p.username;
-        migrated = true;
-      }
-    });
-    if (migrated) saveDbState();
-  }
-  
-  // Set defaults for custom categories if needed
-  if (!db.global_entities) {
-    db.global_entities = seed.global_entities;
-    db.execution_instances = seed.execution_instances;
-    saveDbState();
-  }
-
-  const wasChanged = checkSuspensions();
-  if (wasChanged) {
-    // Recalculate reputations without calling loadDb() to avoid recursion
-    db.profiles.forEach(p => {
-      if (p.is_active) {
-        p.reputation_score = p.base_reputation;
-      }
-    });
-
-    const penaltyAlpha = getLineageAlpha();
-
-    db.profiles.forEach(targetProfile => {
-      if (!targetProfile.is_active) return;
-
-      let totalDiscount = 0.0;
-
-      const findDeconstructionWeight = (inviterId, generation) => {
-        const invitees = db.profiles.filter(p => p.invited_by === inviterId);
-        invitees.forEach(invitee => {
-          const inviteeReviews = db.reviews.filter(r => r.author_id === invitee.id);
-          inviteeReviews.forEach(r => {
-            const consensus = calculateReviewConsensus(r.id);
-            if (consensus.theta < 0.40) {
-              const decay = (1.0 - consensus.theta) / (generation * penaltyAlpha);
-              totalDiscount += decay;
-            }
-          });
-          findDeconstructionWeight(invitee.id, generation + 1);
-        });
-      };
-
-      findDeconstructionWeight(targetProfile.id, 1);
-      targetProfile.reputation_score = Math.max(0.0000, targetProfile.base_reputation - totalDiscount);
-    });
-
-    saveDbState();
-  }
-}
-
-function saveDbState() {
-  localStorage.setItem('review_network_db', JSON.stringify(db));
-}
+// getSeedData, loadDb, and saveDbState are imported from services.js
 
 function loadFollows() {
   const stored = localStorage.getItem('review_network_follows');
@@ -199,184 +68,17 @@ window.toggleFollowUser = function(userId, event) {
   }
 };
 
-async function syncLiveReviews() {
-  try {
-    const response = await fetch('https://api.inviteonlyreviews.com/api/reviews');
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        // Merge reviews
-        if (result.reviews) {
-          result.reviews.forEach(liveR => {
-            let localR = db.reviews.find(r => r.id === liveR.id);
-            if (localR) {
-              localR.node_id = liveR.node_id;
-              localR.execution_instance_id = liveR.execution_instance_id;
-              localR.author_id = liveR.author_id;
-              localR.raw_content = liveR.raw_content;
-              localR.is_verified_experience = liveR.is_verified_experience;
-              localR.param_val_1 = liveR.param_val_1 ? parseFloat(liveR.param_val_1) : null;
-              localR.param_val_2 = liveR.param_val_2 ? parseFloat(liveR.param_val_2) : null;
-              localR.param_val_3 = liveR.param_val_3 ? parseFloat(liveR.param_val_3) : null;
-              localR.verification_method = liveR.verification_method;
-              localR.gps_dop = liveR.gps_dop ? parseFloat(liveR.gps_dop) : null;
-              localR.created_at = typeof liveR.created_at === 'string' ? new Date(liveR.created_at).getTime() : liveR.created_at;
-            } else {
-              db.reviews.push({
-                id: liveR.id,
-                node_id: liveR.node_id,
-                execution_instance_id: liveR.execution_instance_id,
-                author_id: liveR.author_id,
-                raw_content: liveR.raw_content,
-                is_verified_experience: liveR.is_verified_experience,
-                param_val_1: liveR.param_val_1 ? parseFloat(liveR.param_val_1) : null,
-                param_val_2: liveR.param_val_2 ? parseFloat(liveR.param_val_2) : null,
-                param_val_3: liveR.param_val_3 ? parseFloat(liveR.param_val_3) : null,
-                verification_method: liveR.verification_method,
-                gps_dop: liveR.gps_dop ? parseFloat(liveR.gps_dop) : null,
-                created_at: typeof liveR.created_at === 'string' ? new Date(liveR.created_at).getTime() : liveR.created_at
-              });
-            }
-          });
-          const liveIds = result.reviews.map(r => r.id);
-          db.reviews = db.reviews.filter(r => r.id.startsWith('local_') || liveIds.includes(r.id));
-        }
-
-        // Merge tags
-        if (result.tags) {
-          result.tags.forEach(liveT => {
-            let localT = db.tags.find(t => t.id === liveT.id);
-            if (localT) {
-              localT.name = liveT.name;
-            } else {
-              db.tags.push({
-                id: liveT.id,
-                name: liveT.name
-              });
-            }
-          });
-        }
-
-        // Merge review_tags
-        if (result.review_tags) {
-          db.review_tags = result.review_tags;
-        }
-
-        // Merge nodes
-        if (result.nodes) {
-          result.nodes.forEach(liveN => {
-            let localN = db.nodes.find(n => n.id === liveN.id);
-            if (localN) {
-              localN.parent_id = liveN.parent_id;
-              localN.name = liveN.name;
-              localN.slug = liveN.slug;
-              localN.node_type = liveN.node_type;
-              localN.path = liveN.path;
-              localN.address = liveN.address;
-              localN.coordinates = liveN.coordinates;
-            } else {
-              db.nodes.push({
-                id: liveN.id,
-                parent_id: liveN.parent_id,
-                name: liveN.name,
-                slug: liveN.slug,
-                node_type: liveN.node_type,
-                path: liveN.path,
-                address: liveN.address,
-                coordinates: liveN.coordinates
-              });
-            }
-          });
-          const liveNodeIds = result.nodes.map(n => n.id);
-          db.nodes = db.nodes.filter(n => liveNodeIds.includes(n.id));
-        }
-
-        // Merge vouches_disputes
-        if (result.vouches_disputes) {
-          db.vouches_disputes = result.vouches_disputes.map(v => ({
-            id: v.id,
-            review_id: v.review_id,
-            user_id: v.user_id,
-            type: v.type,
-            allocated_weight: parseFloat(v.allocated_weight)
-          }));
-        }
-
-        saveDbState();
-
-        // Refresh active views
-        const activeTab = document.querySelector('.nav-tab-btn.active')?.getAttribute('data-tab');
-        if (activeTab === 'feed-view') {
-          renderFeedReviews();
-        } else if (activeTab === 'following-view') {
-          renderFollowingFeed();
-        } else if (activeTab === 'browse-view') {
-          renderDirectoryExplorer();
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Failed to sync live reviews:", e);
+// syncLiveReviews, syncLiveProfiles, and checkSuspensions are imported from services.js
+window.refreshActiveViews = function() {
+  const activeTab = document.querySelector('.nav-tab-btn.active')?.getAttribute('data-tab');
+  if (activeTab === 'feed-view') {
+    renderFeedReviews();
+  } else if (activeTab === 'following-view') {
+    renderFollowingFeed();
+  } else if (activeTab === 'browse-view') {
+    renderDirectoryExplorer();
   }
-}
-
-
-async function syncLiveProfiles() {
-  try {
-    const response = await fetch('https://api.inviteonlyreviews.com/api/profiles');
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success && result.profiles) {
-        result.profiles.forEach(liveP => {
-          let localP = db.profiles.find(p => p.id === liveP.id);
-          if (localP) {
-            localP.username = liveP.username;
-            localP.reputation_score = parseFloat(liveP.reputation_score);
-            localP.invited_by = liveP.invited_by;
-            localP.is_active = liveP.is_active;
-            localP.role = liveP.role;
-            localP.released_by = liveP.released_by;
-            localP.originally_invited_by = liveP.originally_invited_by;
-            if (liveP.demographic_group) {
-              localP.demographic_group = liveP.demographic_group;
-            }
-          } else {
-            db.profiles.push({
-              id: liveP.id,
-              username: liveP.username,
-              reputation_score: parseFloat(liveP.reputation_score),
-              base_reputation: parseFloat(liveP.reputation_score),
-              invited_by: liveP.invited_by,
-              is_active: liveP.is_active,
-              access_key: 'key_' + liveP.username,
-              role: liveP.role,
-              released_by: liveP.released_by,
-              originally_invited_by: liveP.originally_invited_by,
-              demographic_group: liveP.demographic_group || 'urban_affluent'
-            });
-          }
-        });
-        saveDbState();
-      }
-    }
-  } catch (e) {
-    console.error("Failed to sync live profiles:", e);
-  }
-}
-
-function checkSuspensions() {
-  if (!db || !db.profiles) return false;
-  let changed = false;
-  const now = Date.now();
-  db.profiles.forEach(p => {
-    if (!p.is_active && p.suspended_until && p.suspended_until <= now) {
-      p.is_active = true;
-      p.suspended_until = null;
-      changed = true;
-    }
-  });
-  return changed;
-}
+};
 
 // ----------------------------------------------------
 // 2. Identity and Authentication State
@@ -673,62 +375,7 @@ function initTabNavigation() {
   }
 }
 
-// Helper: Calculate Consensus ratio and voting weight
-function calculateReviewConsensus(reviewId) {
-  const review = db.reviews.find(r => r.id === reviewId);
-  if (!review) return { theta: 1.0, total: 0, vouches: 0, disputes: 0 };
-
-  const votes = db.vouches_disputes.filter(v => v.review_id === reviewId);
-  
-  let vouches = 0;
-  let disputes = 0;
-
-  votes.forEach(vote => {
-    const voter = db.profiles.find(p => p.id === vote.user_id);
-    if (!voter || !voter.is_active) return;
-
-    let weight = parseFloat(voter.reputation_score);
-
-    // Apply social proximity discount (50% penalty if voter is in same invite lineage)
-    if (checkLineageCollusion(review.author_id, vote.user_id)) {
-      weight *= 0.5;
-    }
-
-    if (vote.type === 'vouch') {
-      vouches += weight;
-    } else {
-      disputes += weight;
-    }
-  });
-
-  const total = vouches + disputes;
-  const theta = total > 0 ? vouches / total : 1.0;
-  return { theta, total, vouches, disputes };
-}
-
-// Helper: Get categories, tags list and lineage check
-function getReviewTags(reviewId) {
-  const tagIds = db.review_tags.filter(rt => rt.review_id === reviewId).map(rt => rt.tag_id);
-  return db.tags.filter(t => tagIds.includes(t.id));
-}
-
-// Helper: Verify if user has invitation lineage overlap (discount weight by 50%)
-function checkLineageCollusion(authorId, voterId) {
-  if (authorId === voterId) return false;
-  
-  // Recursively trace parent nodes up to 5 generations
-  const checkParent = (id, target, depth) => {
-    if (depth > 5 || !id) return false;
-    const profile = db.profiles.find(p => p.id === id);
-    if (profile) {
-      if (profile.id === target) return true;
-      return checkParent(profile.invited_by, target, depth + 1);
-    }
-    return false;
-  };
-
-  return checkParent(authorId, voterId, 1) || checkParent(voterId, authorId, 1);
-}
+// calculateReviewConsensus, getReviewTags, and checkLineageCollusion are imported from services.js
 
 // ----------------------------------------------------
 // 4. Forum Feed Rendering & Search
@@ -832,9 +479,11 @@ function renderFeedReviews() {
   }
 
   // 4. Render
+  const fragment = document.createDocumentFragment();
   reviews.forEach(r => {
-    renderReviewCard(r, feedList, settingsRevealConsent);
+    renderReviewCard(r, fragment, settingsRevealConsent);
   });
+  feedList.appendChild(fragment);
 }
 
 function renderReviewCard(r, parentContainer, settingsRevealConsent) {
@@ -849,7 +498,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
     const tracePath = (nodeId) => {
       const n = db.nodes.find(item => item.id === nodeId);
       if (n) {
-        pathParts.unshift(n.name);
+        pathParts.unshift(sanitizeHTML(n.name));
         if (n.parent_id) tracePath(n.parent_id);
       }
     };
@@ -883,7 +532,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
   if (r.tags && r.tags.length > 0) {
     tagsHtml = `
       <div class="review-tag-badges" style="margin-top: 0.75rem; display: flex; gap: 0.35rem; flex-wrap: wrap;">
-        ${r.tags.map(t => `<span class="tag-chip" style="font-size:0.75rem; padding: 2px 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); cursor:pointer;" onclick="setFeedTagFilter(${t.id}, '${t.name}')">#${t.name}</span>`).join('')}
+        ${r.tags.map(t => `<span class="tag-chip" style="font-size:0.75rem; padding: 2px 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); cursor:pointer;" onclick="setFeedTagFilter(${t.id}, '${sanitizeHTML(t.name).replace(/'/g, "\\'")}')">#${sanitizeHTML(t.name)}</span>`).join('')}
       </div>
     `;
   }
@@ -931,7 +580,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
         <div>
           <div class="post-path" style="font-size:0.75rem; color:var(--color-primary); font-family:var(--font-mono);" title="${pathString.replace(/&#x27;/g, `'`).replace(/&quot;/g, `"`).replace(/&amp;/g, `&`)}">${pathString}</div>
           <div style="display:flex; align-items:center; gap:0.25rem;">
-            <h3 class="post-author" style="margin: 0.15rem 0; font-size: 0.95rem;">@${r.author?.username || 'deactivated_user'}</h3>
+            <h3 class="post-author" style="margin: 0.15rem 0; font-size: 0.95rem;">@${sanitizeHTML(r.author?.username || 'deactivated_user')}</h3>
             ${followBtnHtml}
           </div>
         </div>
@@ -941,7 +590,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
           ${deleteBtnHtml}
         </div>
       </div>
-      <p class="post-body-text" style="font-size:0.9rem; line-height:1.45; color:#e4e4e7;">${r.raw_content}</p>
+      <p class="post-body-text" style="font-size:0.9rem; line-height:1.45; color:#e4e4e7;">${sanitizeHTML(r.raw_content)}</p>
       ${paramsHtml}
       ${tagsHtml}
       
@@ -1027,9 +676,11 @@ function renderFollowingFeed() {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
   reviews.forEach(r => {
-    renderReviewCard(r, feedList, settingsRevealConsent);
+    renderReviewCard(r, fragment, settingsRevealConsent);
   });
+  feedList.appendChild(fragment);
 }
 
 function renderUsersSearch() {
@@ -1312,8 +963,8 @@ window.castFeedVote = function(reviewId, type) {
   });
 };
 
-window.deleteReviewFromFeed = function(reviewId) {
-  if (!confirm("Are you sure you want to permanently delete this review from the network?")) {
+window.deleteReviewFromFeed = async function(reviewId) {
+  if (!await showConfirm("Are you sure you want to permanently delete this review from the network?", "Delete Review")) {
     return;
   }
   
@@ -1356,71 +1007,12 @@ window.deleteReviewFromFeed = function(reviewId) {
   alert("Review successfully deleted from the network.");
 };
 
-function getLineageAlpha() {
-  const settingsStr = localStorage.getItem('review_network_settings');
-  if (settingsStr) {
-    try {
-      const settings = JSON.parse(settingsStr);
-      if (settings && typeof settings.lineageAlpha === 'number') {
-        return settings.lineageAlpha;
-      }
-    } catch (e) {
-      console.warn("Failed to parse review_network_settings:", e);
-    }
-  }
-  return 0.25; // default alpha
-}
+// getLineageAlpha is imported from services.js
 
 // ----------------------------------------------------
 // 5. Lineage Penalities & Reputation Contagion Engine
 // ----------------------------------------------------
-function runLineageReputationDecay() {
-  loadDb();
-  
-  // Reset all profile reputations to base scores first
-  db.profiles.forEach(p => {
-    if (p.is_active) {
-      p.reputation_score = p.base_reputation;
-    }
-  });
-
-  const penaltyAlpha = getLineageAlpha();
-
-  // Compute for all profiles
-  db.profiles.forEach(targetProfile => {
-    if (!targetProfile.is_active) return;
-
-    // Find all reviews written by downstream invitees (blast radius)
-    let totalDiscount = 0.0;
-
-    const findDeconstructionWeight = (inviterId, generation) => {
-      const invitees = db.profiles.filter(p => p.invited_by === inviterId);
-      invitees.forEach(invitee => {
-        // Fetch reviews written by this invitee
-        const inviteeReviews = db.reviews.filter(r => r.author_id === invitee.id);
-        inviteeReviews.forEach(r => {
-          const consensus = calculateReviewConsensus(r.id);
-          if (consensus.theta < 0.40) {
-            // Dispute decay math: (1 - consensus) / (generation_distance * alpha)
-            const decay = (1.0 - consensus.theta) / (generation * penaltyAlpha);
-            totalDiscount += decay;
-          }
-        });
-
-        // Recursively inspect grandchildren
-        findDeconstructionWeight(invitee.id, generation + 1);
-      });
-    };
-
-    findDeconstructionWeight(targetProfile.id, 1);
-
-    // Apply decayed reputation score capped at zero
-    targetProfile.reputation_score = Math.max(0.0000, targetProfile.base_reputation - totalDiscount);
-  });
-
-  saveDbState();
-  syncCurrentUser(); // Refreshes badge
-}
+// runLineageReputationDecay is imported from services.js
 
 // ----------------------------------------------------
 // 6. Hierarchical Directory Browser
@@ -1483,6 +1075,7 @@ function renderDirectoryExplorer() {
     `;
   }
 
+  const fragment = document.createDocumentFragment();
   children.forEach(child => {
     const card = document.createElement('div');
     card.className = 'directory-card card-hover-effect';
@@ -1497,7 +1090,7 @@ function renderDirectoryExplorer() {
       <div style="display:flex; align-items:center; gap:0.75rem;">
         <span style="font-size:1.5rem;">${typeIcon}</span>
         <div style="display:flex; flex-direction:column;">
-          <strong style="font-size:0.95rem; color:#e4e4e7;">${child.name}</strong>
+          <strong style="font-size:0.95rem; color:#e4e4e7;">${sanitizeHTML(child.name)}</strong>
           <span style="font-size:0.72rem; color:#71717a; text-transform:uppercase; font-family:var(--font-mono);">${child.node_type}</span>
         </div>
       </div>
@@ -1514,8 +1107,9 @@ function renderDirectoryExplorer() {
       }
     });
 
-    listDeck.appendChild(card);
+    fragment.appendChild(card);
   });
+  listDeck.appendChild(fragment);
 
   // Default Node Detail state if nothing selected: show the parent folder details
   if (currentDirectoryPath.length > 0) {
@@ -1556,12 +1150,12 @@ function renderNodeDetail(node) {
   // Address and coords
   const addressBlock = node.address ? `
     <div style="font-size:0.85rem; margin-top:0.35rem; color:#a1a1aa;">
-      📍 <strong>Address:</strong> ${node.address}
+      📍 <strong>Address:</strong> ${sanitizeHTML(node.address)}
     </div>
   ` : '';
   const coordsBlock = node.coordinates ? `
     <div style="font-size:0.85rem; margin-top:0.15rem; color:#a1a1aa;">
-      🌐 <strong>Coordinates:</strong> <code style="font-family:var(--font-mono); font-size:0.78rem;">${node.coordinates}</code>
+      🌐 <strong>Coordinates:</strong> <code style="font-family:var(--font-mono); font-size:0.78rem;">${sanitizeHTML(node.coordinates)}</code>
     </div>
   ` : '';
 
@@ -1589,7 +1183,7 @@ function renderNodeDetail(node) {
           <span class="badge count-badge" style="font-family:var(--font-mono); text-transform:uppercase;">${node.node_type}</span>
           ${modActionsButtonHtml}
         </div>
-        <h2 style="margin-top:0.25rem;">${node.name}</h2>
+        <h2 style="margin-top:0.25rem;">${sanitizeHTML(node.name)}</h2>
       </div>
       <div style="text-align:right;">
         <div style="font-size:0.7rem; color:#71717a; text-transform:uppercase;">Consensus Rating</div>
@@ -1599,7 +1193,7 @@ function renderNodeDetail(node) {
     ${addressBlock}
     ${coordsBlock}
     <div style="display:flex; justify-content:space-between; margin-top:1rem; font-size:0.82rem; color:#71717a;">
-      <span>Directory path: <code>${node.path}</code></span>
+      <span>Directory path: <code>${sanitizeHTML(node.path)}</code></span>
       <span>${reviews.length} feedback posts</span>
     </div>
   `;
@@ -1615,6 +1209,7 @@ function renderNodeDetail(node) {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
   reviews.forEach(r => {
     const cardContainer = document.createElement('div');
     cardContainer.className = 'review-card-container';
@@ -1660,15 +1255,15 @@ function renderNodeDetail(node) {
       <div class="${cardClass}" style="${isCollapsed ? 'filter: blur(4px); pointer-events: none; opacity: 0.2;' : ''}">
         ${warningBanner}
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-          <strong style="font-size:0.85rem; color:#e4e4e7;">@${r.author?.username || 'deactivated_user'}</strong>
+          <strong style="font-size:0.85rem; color:#e4e4e7;">@${sanitizeHTML(r.author?.username || 'deactivated_user')}</strong>
           <div style="display:flex; gap:0.25rem; align-items:center;">
             ${verifyBadge}
             <span style="font-size:0.7rem; color:#71717a;">${new Date(r.created_at).toLocaleDateString()}</span>
             ${deleteBtnHtml}
           </div>
         </div>
-        <p style="font-size:0.82rem; line-height:1.4; color:#d4d4d8; margin:0;">${r.raw_content}</p>
-        ${r.tags && r.tags.length > 0 ? `<div style="display:flex; gap:0.25rem; flex-wrap:wrap; margin-top:0.4rem;">${r.tags.map(t => `<span class="tag-chip" style="font-size:0.65rem; padding: 1px 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);">#${t.name}</span>`).join('')}</div>` : ''}
+        <p style="font-size:0.82rem; line-height:1.4; color:#d4d4d8; margin:0;">${sanitizeHTML(r.raw_content)}</p>
+        ${r.tags && r.tags.length > 0 ? `<div style="display:flex; gap:0.25rem; flex-wrap:wrap; margin-top:0.4rem;">${r.tags.map(t => `<span class="tag-chip" style="font-size:0.65rem; padding: 1px 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);">#${sanitizeHTML(t.name)}</span>`).join('')}</div>` : ''}
         
         <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.75rem; border-top:1px solid var(--border-color); padding-top:0.5rem; font-size:0.75rem;">
           <span style="color:#71717a;">👍 ${r.consensus.vouches.toFixed(1)} | 👎 ${r.consensus.disputes.toFixed(1)}</span>
@@ -1700,8 +1295,9 @@ function renderNodeDetail(node) {
       cardContainer.appendChild(overlay);
     }
 
-    detailsReviews.appendChild(cardContainer);
+    fragment.appendChild(cardContainer);
   });
+  detailsReviews.appendChild(fragment);
 }
 
 // Redirect hook to submission from directory placeholder
@@ -2405,7 +2001,9 @@ function initPreferences() {
 }
 
 window.deleteNodeFromDirectory = async function(nodeId) {
-  if (!confirm("Are you sure you want to permanently delete this directory space, including all sub-spaces and reviews?")) {
+  // NOTE: The Edge Worker / Backend must independently verify the authKey and check for
+  // key_root_moderator or moderator role prior to execution. Do not rely solely on frontend client checks.
+  if (!await showConfirm("Are you sure you want to permanently delete this directory space, including all sub-spaces and reviews?", "Delete Directory Space")) {
     return;
   }
 
@@ -2470,6 +2068,8 @@ window.deleteNodeFromDirectory = async function(nodeId) {
 };
 
 window.mergeNodeInDirectory = async function(nodeId) {
+  // NOTE: The Edge Worker / Backend must independently verify the authKey and check for
+  // key_root_moderator or moderator role prior to execution. Do not rely solely on frontend client checks.
   const targetIdStr = prompt("Enter the ID of the canonical target category/merchant to merge this space into:");
   if (targetIdStr === null) return;
   const targetId = parseInt(targetIdStr.trim());
@@ -2489,7 +2089,7 @@ window.mergeNodeInDirectory = async function(nodeId) {
     return;
   }
 
-  if (!confirm(`Are you sure you want to merge space #${nodeId} into space #${targetId}? All child spaces and reviews will be moved.`)) {
+  if (!await showConfirm(`Are you sure you want to merge space #${nodeId} into space #${targetId}? All child spaces and reviews will be moved.`, "Merge Directory Space")) {
     return;
   }
 

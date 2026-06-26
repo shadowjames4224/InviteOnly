@@ -79,8 +79,8 @@ function showAccessKeyModal(title, message, key) {
   document.body.appendChild(overlay);
 }
 
-let db;
-let currentUser = null;
+// db and currentUser are defined globally in services.js
+window.loadDbState = window.loadDb;
 let profileUploadedFiles = [];
 
 function formatRep(rep) {
@@ -88,283 +88,33 @@ function formatRep(rep) {
   return isNaN(val) ? '1.0000' : val.toFixed(4);
 }
 
-function getSeedData() {
-  return {
-    version: 2,
-    profiles: [
-      { id: '00000000-0000-0000-0000-000000000001', username: 'root_moderator', reputation_score: 1.0000, base_reputation: 1.0000, invited_by: null, is_active: true, access_key: 'key_root_moderator', role: 'key_root_moderator' }
-    ],
-    nodes: [
-      { id: 1, parent_id: null, name: 'Earth', slug: 'earth', node_type: 'planet', path: '1' },
-      { id: 2, parent_id: 1, name: 'United States', slug: 'united_states', node_type: 'country', path: '1.2' },
-      { id: 3, parent_id: 2, name: 'Texas', slug: 'texas', node_type: 'state', path: '1.2.3' },
-      { id: 4, parent_id: 3, name: 'Austin', slug: 'austin', node_type: 'city', path: '1.2.3.4' },
-      { id: 5, parent_id: 4, name: 'Coffee Shops', slug: 'coffee_shops', node_type: 'category', path: '1.2.3.4.5' },
-      { id: 6, parent_id: 5, name: 'Classic Coffee', slug: 'classic_coffee', node_type: 'merchant', path: '1.2.3.4.5.6' },
-      { id: 7, parent_id: 5, name: 'Downtown Cafe', slug: 'downtown_cafe', node_type: 'merchant', path: '1.2.3.4.5.7' },
-      { id: 8, parent_id: 6, name: 'Cold Brew Coffee', slug: 'cold_brew_coffee', node_type: 'item', path: '1.2.3.4.5.6.8' }
-    ],
-    invite_tokens: [],
-    reviews: [],
-    vouches_disputes: [],
-    tags: [
-      { id: 1, name: 'third wave coffee shop' },
-      { id: 2, name: 'fishing' },
-      { id: 3, name: 'EDC gear' },
-      { id: 4, name: 'outdoor recreation' }
-    ],
-    review_tags: []
-  };
-}
+// getSeedData, loadDbState, and saveDbState are imported/mapped from services.js
 
-// ----------------------------------------------------
-// 1. Initial State Database Load
-// ----------------------------------------------------
-function loadDbState() {
-  const storedDb = localStorage.getItem('review_network_db');
-  let parsed = null;
-  if (storedDb) {
-    try {
-      parsed = JSON.parse(storedDb);
-    } catch (e) {
-      parsed = null;
-    }
-  }
-
-  // Force-wipe check if version is not 2
-  if (parsed && parsed.version !== 2) {
-    parsed = null;
-    localStorage.removeItem('review_network_db');
-  }
-
-  const seed = getSeedData();
-  if (!parsed || !parsed.profiles || !parsed.nodes || !parsed.invite_tokens || !parsed.reviews || !parsed.vouches_disputes) {
-    db = seed;
-    localStorage.setItem('review_network_db', JSON.stringify(db));
-  } else {
-    db = parsed;
+// syncLiveReviews and syncLiveProfiles are imported from services.js
+window.refreshActiveViews = function() {
+  if (currentUser) {
+    renderMyReviewsFeed();
     
-    // Migrate tags and review_tags collections if missing
-    if (!db.tags) db.tags = seed.tags || [];
-    if (!db.review_tags) db.review_tags = seed.review_tags || [];
-    
-    // Add missing access keys or system tokens (migration)
-    let migrated = false;
-    db.profiles.forEach(p => {
-      if (!p.access_key) {
-        p.access_key = 'key_' + p.username;
-        migrated = true;
-      }
-    });
-    // Add pre-seeded system tokens if missing
-    seed.invite_tokens.forEach(st => {
-      if (!st.inviter_id && !db.invite_tokens.some(t => t.rawToken === st.rawToken)) {
-        db.invite_tokens.push(st);
-        migrated = true;
-      }
-    });
-    if (migrated || !parsed.tags || !parsed.review_tags) {
-      localStorage.setItem('review_network_db', JSON.stringify(db));
-    }
-  }
-  const wasChanged = checkSuspensions();
-
-  if (wasChanged) {
-    saveDbState();
-  }
-  // Sync live profiles from Cloudflare Worker
-  syncLiveProfiles();
-  syncLiveReviews();
-}
-
-function saveDbState() {
-  localStorage.setItem('review_network_db', JSON.stringify(db));
-}
-
-async function syncLiveReviews() {
-  try {
-    const response = await fetch('https://api.inviteonlyreviews.com/api/reviews');
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        // Merge reviews
-        if (result.reviews) {
-          result.reviews.forEach(liveR => {
-            let localR = db.reviews.find(r => r.id === liveR.id);
-            if (localR) {
-              localR.node_id = liveR.node_id;
-              localR.execution_instance_id = liveR.execution_instance_id;
-              localR.author_id = liveR.author_id;
-              localR.raw_content = liveR.raw_content;
-              localR.is_verified_experience = liveR.is_verified_experience;
-              localR.param_val_1 = liveR.param_val_1 ? parseFloat(liveR.param_val_1) : null;
-              localR.param_val_2 = liveR.param_val_2 ? parseFloat(liveR.param_val_2) : null;
-              localR.param_val_3 = liveR.param_val_3 ? parseFloat(liveR.param_val_3) : null;
-              localR.verification_method = liveR.verification_method;
-              localR.gps_dop = liveR.gps_dop ? parseFloat(liveR.gps_dop) : null;
-              localR.created_at = typeof liveR.created_at === 'string' ? new Date(liveR.created_at).getTime() : liveR.created_at;
-            } else {
-              db.reviews.push({
-                id: liveR.id,
-                node_id: liveR.node_id,
-                execution_instance_id: liveR.execution_instance_id,
-                author_id: liveR.author_id,
-                raw_content: liveR.raw_content,
-                is_verified_experience: liveR.is_verified_experience,
-                param_val_1: liveR.param_val_1 ? parseFloat(liveR.param_val_1) : null,
-                param_val_2: liveR.param_val_2 ? parseFloat(liveR.param_val_2) : null,
-                param_val_3: liveR.param_val_3 ? parseFloat(liveR.param_val_3) : null,
-                verification_method: liveR.verification_method,
-                gps_dop: liveR.gps_dop ? parseFloat(liveR.gps_dop) : null,
-                created_at: typeof liveR.created_at === 'string' ? new Date(liveR.created_at).getTime() : liveR.created_at
-              });
-            }
-          });
-          const liveIds = result.reviews.map(r => r.id);
-          db.reviews = db.reviews.filter(r => r.id.startsWith('local_') || liveIds.includes(r.id));
-        }
-
-        // Merge tags
-        if (result.tags) {
-          result.tags.forEach(liveT => {
-            let localT = db.tags.find(t => t.id === liveT.id);
-            if (localT) {
-              localT.name = liveT.name;
-            } else {
-              db.tags.push({
-                id: liveT.id,
-                name: liveT.name
-              });
-            }
-          });
-          const liveTagIds = result.tags.map(t => t.id);
-          db.tags = db.tags.filter(t => liveTagIds.includes(t.id));
-        }
-
-        // Merge review_tags
-        if (result.review_tags) {
-          db.review_tags = result.review_tags;
-        }
-
-        // Merge nodes
-        if (result.nodes) {
-          result.nodes.forEach(liveN => {
-            let localN = db.nodes.find(n => n.id === liveN.id);
-            if (localN) {
-              localN.parent_id = liveN.parent_id;
-              localN.name = liveN.name;
-              localN.slug = liveN.slug;
-              localN.node_type = liveN.node_type;
-              localN.path = liveN.path;
-              localN.address = liveN.address;
-              localN.coordinates = liveN.coordinates;
-            } else {
-              db.nodes.push({
-                id: liveN.id,
-                parent_id: liveN.parent_id,
-                name: liveN.name,
-                slug: liveN.slug,
-                node_type: liveN.node_type,
-                path: liveN.path,
-                address: liveN.address,
-                coordinates: liveN.coordinates
-              });
-            }
-          });
-          const liveNodeIds = result.nodes.map(n => n.id);
-          db.nodes = db.nodes.filter(n => liveNodeIds.includes(n.id));
-        }
-
-        // Merge vouches_disputes
-        if (result.vouches_disputes) {
-          db.vouches_disputes = result.vouches_disputes.map(v => ({
-            id: v.id,
-            review_id: v.review_id,
-            user_id: v.user_id,
-            type: v.type,
-            allocated_weight: parseFloat(v.allocated_weight)
-          }));
-        }
-
-        saveDbState();
-
-        if (currentUser) {
-          renderMyReviewsFeed();
-        }
+    // Re-evaluate admin privileges based on synced roles
+    const isModerator = currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator';
+    const adminPanel = document.getElementById('admin-management-panel');
+    if (adminPanel) {
+      if (isModerator && adminPanel.classList.contains('hidden')) {
+        adminPanel.classList.remove('hidden');
+        if (typeof initAdminPanel === 'function') initAdminPanel();
+      } else if (!isModerator) {
+        adminPanel.classList.add('hidden');
       }
     }
-  } catch (e) {
-    console.error("Failed to sync live reviews:", e);
-  }
-}
 
-
-async function syncLiveProfiles() {
-  try {
-    const response = await fetch('https://api.inviteonlyreviews.com/api/profiles');
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success && result.profiles) {
-        result.profiles.forEach(liveP => {
-          let localP = db.profiles.find(p => p.id === liveP.id);
-          if (localP) {
-            localP.username = liveP.username;
-            localP.reputation_score = parseFloat(liveP.reputation_score);
-            localP.base_reputation = parseFloat(liveP.reputation_score);
-            localP.invited_by = liveP.invited_by;
-            localP.is_active = liveP.is_active;
-            localP.released_by = liveP.released_by;
-            localP.originally_invited_by = liveP.originally_invited_by;
-            localP.role = liveP.role;
-            if (liveP.demographic_group) {
-              localP.demographic_group = liveP.demographic_group;
-            }
-          } else {
-            db.profiles.push({
-              id: liveP.id,
-              username: liveP.username,
-              reputation_score: parseFloat(liveP.reputation_score),
-              base_reputation: parseFloat(liveP.reputation_score),
-              invited_by: liveP.invited_by,
-              is_active: liveP.is_active,
-              access_key: 'key_' + liveP.username,
-              released_by: liveP.released_by,
-              originally_invited_by: liveP.originally_invited_by,
-              role: liveP.role,
-              demographic_group: liveP.demographic_group || 'urban_affluent'
-            });
-          }
-        });
-        
-        // Prune deleted profiles from local storage to keep client in sync
-        const liveProfileIds = result.profiles.map(p => p.id);
-        db.profiles = db.profiles.filter(p => liveProfileIds.includes(p.id));
-        
-        saveDbState();
-        if (currentUser) {
-          // Re-evaluate admin privileges based on synced roles
-          const isModerator = currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator';
-          const adminPanel = document.getElementById('admin-management-panel');
-          if (adminPanel) {
-            if (isModerator && adminPanel.classList.contains('hidden')) {
-              adminPanel.classList.remove('hidden');
-              initAdminPanel();
-            } else if (!isModerator) {
-              adminPanel.classList.add('hidden');
-            }
-          }
-
-          renderAdminInviteGraph();
-          populateAdminManageUserDropdown();
-          populateAdminInviterDropdown();
-          renderAdminReleasedList();
-        }
-      }
+    if (isModerator) {
+      if (typeof renderAdminInviteGraph === 'function') renderAdminInviteGraph();
+      if (typeof populateAdminManageUserDropdown === 'function') populateAdminManageUserDropdown();
+      if (typeof populateAdminInviterDropdown === 'function') populateAdminInviterDropdown();
+      if (typeof renderAdminReleasedList === 'function') renderAdminReleasedList();
     }
-  } catch (e) {
-    console.error("Failed to sync live profiles:", e);
   }
-}
+};
 
 async function updateProfilesOnEdge(updatesList) {
   const userKey = sessionStorage.getItem('current_user_key');
@@ -467,88 +217,11 @@ function checkSuspensions() {
 // ----------------------------------------------------
 // 2. Lineage & Reputation Logic
 // ----------------------------------------------------
-function areInSameInviteLineage(userIdA, userIdB) {
-  if (userIdA === userIdB) return true;
-  
-  let pathA = [];
-  let curr = db.profiles.find(p => p.id === userIdA);
-  while (curr) {
-    pathA.push(curr.id);
-    curr = db.profiles.find(p => p.id === curr.invited_by);
-  }
-  
-  let pathB = [];
-  curr = db.profiles.find(p => p.id === userIdB);
-  while (curr) {
-    pathB.push(curr.id);
-    curr = db.profiles.find(p => p.id === curr.invited_by);
-  }
-  
-  return pathA.includes(userIdB) || pathB.includes(userIdA);
-}
-
-function calculateConsensusTheta(reviewId) {
-  let review = db.reviews.find(r => r.id === reviewId);
-  if (!review) return { theta: 1.0, wv: 0, wd: 0 };
-
-  let votes = db.vouches_disputes.filter(v => v.review_id === reviewId);
-  
-  let wv = 0;
-  let wd = 0;
-
-  votes.forEach(vote => {
-    let voter = db.profiles.find(p => p.id === vote.user_id);
-    if (!voter || !voter.is_active) return;
-
-    let weight = voter.reputation_score;
-
-    // Apply social proximity discount (50% penalty if voter is in same invite lineage)
-    if (areInSameInviteLineage(vote.user_id, review.author_id) && vote.user_id !== review.author_id) {
-      weight *= 0.5;
-    }
-
-    if (vote.type === 'vouch') {
-      wv += weight;
-    } else {
-      wd += weight;
-    }
-  });
-
-  let theta = 1.0;
-  if (wv + wd > 0) {
-    theta = wv / (wv + wd);
-  }
-
-  return { theta, wv, wd };
-}
-
-function getLineageAlpha() {
-  const settingsStr = localStorage.getItem('review_network_settings');
-  if (settingsStr) {
-    try {
-      const settings = JSON.parse(settingsStr);
-      if (settings && typeof settings.lineageAlpha === 'number') {
-        return settings.lineageAlpha;
-      }
-    } catch (e) {
-      console.warn("Failed to parse review_network_settings:", e);
-    }
-  }
-  return 0.25; // default alpha
-}
+// areInSameInviteLineage, calculateConsensusTheta, and getLineageAlpha are imported from services.js
 
 
 
-// Helper to construct breadcrumb node path (e.g. Earth / United States / Texas / Austin)
-function getNodePathString(node) {
-  let parts = [];
-  let curr = node;
-  while (curr) {
-    parts.unshift(curr.name);
-    curr = db.nodes.find(n => n.id === curr.parent_id);
-  }
-  return parts.join(' / ');
-}
+// getNodePathString is imported from services.js
 
 // ----------------------------------------------------
 // 3. UI Controller & Rendering
@@ -777,8 +450,8 @@ window.copyTokenToClipboard = function(tokenStr) {
   alert(`Invite token copied: ${tokenStr}\nProvide this to a friend to let them register!`);
 };
 
-window.cancelPendingInvite = function(rawToken) {
-  if (!confirm("Are you sure you want to cancel this pending invite? It will be invalidated and you will get your invite slot back.")) {
+window.cancelPendingInvite = async function(rawToken) {
+  if (!(await showConfirm("Are you sure you want to cancel this pending invite? It will be invalidated and you will get your invite slot back.", "Cancel Pending Invite"))) {
     return;
   }
   
@@ -793,7 +466,7 @@ window.revokeRedeemedUser = async function(inviteeId) {
   const invitee = db.profiles.find(p => p.id === inviteeId);
   if (!invitee) return;
   
-  if (!confirm(`Are you sure you want to revoke the invite for @${invitee.username}? This will suspend their profile and cascade-revoke all accounts in their downstream lineage.`)) {
+  if (!(await showConfirm(`Are you sure you want to revoke the invite for @${invitee.username}? This will suspend their profile and cascade-revoke all accounts in their downstream lineage.`, "Revoke Invited User"))) {
     return;
   }
   
@@ -835,7 +508,7 @@ window.releaseUser = async function(targetId) {
   const target = db.profiles.find(p => p.id === targetId);
   if (!target) return;
 
-  if (!confirm(`Are you sure you want to release @${target.username} to a standalone account? This will detach them from your hierarchical tree (preventing cascade revocation) and free up 1 slot in your invite quota.`)) {
+  if (!(await showConfirm(`Are you sure you want to release @${target.username} to a standalone account? This will detach them from your hierarchical tree (preventing cascade revocation) and free up 1 slot in your invite quota.`, "Release User"))) {
     return;
   }
 
@@ -913,96 +586,7 @@ function populateParentNodeDropdown() {
 // Governance Voting Helpers (mirrored from index.js)
 // ----------------------------------------------------
 
-// Verify if two users share an invite lineage (discount weight by 50%)
-function checkLineageCollusion(authorId, voterId) {
-  if (authorId === voterId) return false;
-
-  // Recursively trace parent nodes up to 5 generations
-  const checkParent = (id, target, depth) => {
-    if (depth > 5 || !id) return false;
-    const profile = db.profiles.find(p => p.id === id);
-    if (profile) {
-      if (profile.id === target) return true;
-      return checkParent(profile.invited_by, target, depth + 1);
-    }
-    return false;
-  };
-
-  return checkParent(authorId, voterId, 1) || checkParent(voterId, authorId, 1);
-}
-
-// Recalculate consensus for a single review (used by reputation decay)
-function calculateReviewConsensus(reviewId) {
-  const review = db.reviews.find(r => r.id === reviewId);
-  if (!review) return { theta: 1.0, total: 0, vouches: 0, disputes: 0 };
-
-  const votes = db.vouches_disputes.filter(v => v.review_id === reviewId);
-
-  let vouches = 0;
-  let disputes = 0;
-
-  votes.forEach(vote => {
-    const voter = db.profiles.find(p => p.id === vote.user_id);
-    if (!voter || !voter.is_active) return;
-
-    let weight = parseFloat(voter.reputation_score);
-
-    if (checkLineageCollusion(review.author_id, vote.user_id)) {
-      weight *= 0.5;
-    }
-
-    if (vote.type === 'vouch') {
-      vouches += weight;
-    } else {
-      disputes += weight;
-    }
-  });
-
-  const total = vouches + disputes;
-  const theta = total > 0 ? vouches / total : 1.0;
-  return { theta, total, vouches, disputes };
-}
-
-// Recompute lineage-contagion reputation decay for all profiles
-function runLineageReputationDecay() {
-  loadDbState();
-
-  // Reset all profile reputations to base scores first
-  db.profiles.forEach(p => {
-    if (p.is_active) {
-      p.reputation_score = p.base_reputation;
-    }
-  });
-
-  const penaltyAlpha = getLineageAlpha();
-
-  db.profiles.forEach(targetProfile => {
-    if (!targetProfile.is_active) return;
-
-    let totalDiscount = 0.0;
-
-    const findDeconstructionWeight = (inviterId, generation) => {
-      const invitees = db.profiles.filter(p => p.invited_by === inviterId);
-      invitees.forEach(invitee => {
-        const inviteeReviews = db.reviews.filter(r => r.author_id === invitee.id);
-        inviteeReviews.forEach(r => {
-          const consensus = calculateReviewConsensus(r.id);
-          if (consensus.theta < 0.40) {
-            const decay = (1.0 - consensus.theta) / (generation * penaltyAlpha);
-            totalDiscount += decay;
-          }
-        });
-        findDeconstructionWeight(invitee.id, generation + 1);
-      });
-    };
-
-    findDeconstructionWeight(targetProfile.id, 1);
-
-    targetProfile.reputation_score = Math.max(0.0000, targetProfile.base_reputation - totalDiscount);
-  });
-
-  saveDbState();
-}
+// checkLineageCollusion, calculateReviewConsensus, and runLineageReputationDecay are imported/mapped from services.js
 
 // Global vote function exposed on the window so review card onclick attributes work
 window.castFeedVote = function(reviewId, type) {
@@ -1083,6 +667,7 @@ function renderMyReviewsFeed() {
   // Sort: date DESC
   myReviews.sort((a, b) => b.created_at - a.created_at);
 
+  const fragment = document.createDocumentFragment();
   myReviews.forEach(r => {
     const node = db.nodes.find(n => n.id === r.node_id);
     const { theta, wv, wd } = calculateConsensusTheta(r.id);
@@ -1108,7 +693,7 @@ function renderMyReviewsFeed() {
         const voter = db.profiles.find(p => p.id === v.user_id);
         const name = voter ? voter.username : 'unknown';
         const symbol = v.type === 'vouch' ? '👍' : '👎';
-        return `@${name} ${symbol}`;
+        return `@${sanitizeHTML(name)} ${symbol}`;
       });
       votesHTML = `<div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 0.5rem;"><strong>Governance Votes:</strong> ${voteStrings.join(', ')}</div>`;
     }
@@ -1116,8 +701,8 @@ function renderMyReviewsFeed() {
     let locHTML = '';
     if (node && (node.address || node.coordinates)) {
       let parts = [];
-      if (node.address) parts.push(`📍 Address: ${node.address}`);
-      if (node.coordinates) parts.push(`🌐 GPS: ${node.coordinates}`);
+      if (node.address) parts.push(`📍 Address: ${sanitizeHTML(node.address)}`);
+      if (node.coordinates) parts.push(`🌐 GPS: ${sanitizeHTML(node.coordinates)}`);
       locHTML = `<div style="font-size: 0.75rem; color: var(--color-success); margin-top: 0.25rem; font-weight: 500;">${parts.join(' | ')}</div>`;
     }
 
@@ -1150,9 +735,9 @@ function renderMyReviewsFeed() {
       <div class="review-card ${cardClass}" style="margin-bottom: 0px; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word;">
         <div class="review-card-header">
           <div>
-            <strong>${node ? node.name : 'Unknown Node'}</strong>
+            <strong>${node ? sanitizeHTML(node.name) : 'Unknown Node'}</strong>
             <span class="node-path" style="display: block; font-size: 0.7rem; margin-top: 0.25rem; background: transparent; border: none; color: var(--color-text-dim); padding: 0; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
-              ${node ? getNodePathString(node) : ''}
+              ${node ? sanitizeHTML(getNodePathString(node)) : ''}
             </span>
             ${locHTML}
             ${parametersLine}
@@ -1161,7 +746,7 @@ function renderMyReviewsFeed() {
             ${poeBadge}
           </div>
         </div>
-        <div class="review-content" style="margin-top: 0.5rem;">${r.raw_content}</div>
+        <div class="review-content" style="margin-top: 0.5rem;">${sanitizeHTML(r.raw_content)}</div>
         
         <!-- Render tags linked to this review -->
         ${(() => {
@@ -1170,7 +755,7 @@ function renderMyReviewsFeed() {
           if (tags.length === 0) return '';
           return `
             <div class="review-tag-badges" style="margin-top: 0.5rem; display: flex; gap: 0.25rem; flex-wrap: wrap;">
-              ${tags.map(t => `<span class="tag-chip" style="font-size:0.65rem; padding: 1px 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius:4px;">#${t.name}</span>`).join('')}
+              ${tags.map(t => `<span class="tag-chip" style="font-size:0.65rem; padding: 1px 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius:4px;">#${sanitizeHTML(t.name)}</span>`).join('')}
             </div>
           `;
         })()}
@@ -1185,8 +770,14 @@ function renderMyReviewsFeed() {
         </div>
       </div>
     `;
-    feed.innerHTML += html;
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html.trim();
+    if (wrapper.firstElementChild) {
+      fragment.appendChild(wrapper.firstElementChild);
+    }
   });
+  feed.appendChild(fragment);
 }
 
 // ----------------------------------------------------
@@ -2879,8 +2470,8 @@ window.selectAdminProfile = function(profileId) {
   }
 };
 
-window.deleteReviewFromConsole = function(reviewId) {
-  if (!confirm("Are you sure you want to permanently delete this review?")) {
+window.deleteReviewFromConsole = async function(reviewId) {
+  if (!(await showConfirm("Are you sure you want to permanently delete this review?", "Delete Review"))) {
     return;
   }
   
@@ -2964,8 +2555,8 @@ function renderGlobalReviewsManager() {
   });
 }
 
-window.deleteReviewFromGlobal = function(reviewId) {
-  if (!confirm("Are you sure you want to permanently delete this post from the network?")) {
+window.deleteReviewFromGlobal = async function(reviewId) {
+  if (!(await showConfirm("Are you sure you want to permanently delete this post from the network?", "Delete Review"))) {
     return;
   }
   
@@ -3028,7 +2619,7 @@ document.getElementById('btn-admin-revoke-user')?.addEventListener('click', asyn
     return;
   }
 
-  if (!confirm(`Are you sure you want to cascade-revoke ${target.username} and ALL accounts spawned in their invitation branch?`)) {
+  if (!(await showConfirm(`Are you sure you want to cascade-revoke ${target.username} and ALL accounts spawned in their invitation branch?`, "Cascade Revoke Branch"))) {
     return;
   }
 
@@ -3421,7 +3012,7 @@ document.getElementById('btn-admin-delete-user')?.addEventListener('click', asyn
     return;
   }
 
-  if (!confirm(`Are you sure you want to permanently purge the profile @${target.username}? This action is irreversible.\nDownstream profiles will be re-linked to @${target.username}'s inviter to preserve graph integrity.`)) {
+  if (!(await showConfirm(`Are you sure you want to permanently purge the profile @${target.username}? This action is irreversible.\nDownstream profiles will be re-linked to @${target.username}'s inviter to preserve graph integrity.`, "Purge Profile"))) {
     return;
   }
 
