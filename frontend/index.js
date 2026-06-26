@@ -1541,8 +1541,16 @@ window.redirectToPostReview = function(nodeId) {
 // ----------------------------------------------------
 // 7. Searchable Dropdowns & Autofill Forms
 // ----------------------------------------------------
+function formatNodeDisplayLabel(node) {
+  if (!node) return '';
+  return window.getNodePathString(node).split(' / ').join(' > ');
+}
+
 function populateDropdowns() {
   loadDb();
+  
+  // Sort nodes hierarchically by their path strings
+  const sortedNodes = [...db.nodes].sort((a, b) => (a.path || '').localeCompare(b.path || ''));
   
   // 1. Populate Target Nodes
   const selectTarget = document.getElementById('select-portal-target-node');
@@ -1551,10 +1559,10 @@ function populateDropdowns() {
   if (selectTarget) {
     selectTarget.innerHTML = '';
     // Load all leaf nodes
-    db.nodes.forEach(n => {
+    sortedNodes.forEach(n => {
       const opt = document.createElement('option');
       opt.value = n.id;
-      opt.text = `[${n.node_type.toUpperCase()}] ${n.name} (path: ${n.path})`;
+      opt.text = formatNodeDisplayLabel(n);
       selectTarget.appendChild(opt);
     });
   }
@@ -1562,10 +1570,10 @@ function populateDropdowns() {
   if (selectParent) {
     selectParent.innerHTML = '';
     // Load category nodes
-    db.nodes.filter(n => n.node_type !== 'merchant' && n.node_type !== 'item' && n.node_type !== 'fishing_spot').forEach(n => {
+    sortedNodes.filter(n => n.node_type !== 'merchant' && n.node_type !== 'item' && n.node_type !== 'fishing_spot').forEach(n => {
       const opt = document.createElement('option');
       opt.value = n.id;
-      opt.text = `${n.name} (path: ${n.path})`;
+      opt.text = formatNodeDisplayLabel(n);
       selectParent.appendChild(opt);
     });
   }
