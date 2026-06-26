@@ -582,6 +582,58 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
     deleteBtnHtml = `<button class="btn-delete-review" onclick="deleteReviewFromFeed('${r.id}')" style="background: transparent; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);" onmouseenter="this.style.background='rgba(239, 68, 68, 0.15)'" onmouseleave="this.style.background='rgba(239, 68, 68, 0.05)'">🗑️ Delete</button>`;
   }
 
+  // Edit button HTML
+  let editBtnHtml = '';
+  if (currentUser && r.author_id === currentUser.id) {
+    editBtnHtml = `<button class="btn-edit-review" onclick="editReviewInline('${r.id}')" style="background: transparent; border: none; color: var(--color-primary); cursor: pointer; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.05); margin-right: 0.25rem;" onmouseenter="this.style.background='rgba(16, 185, 129, 0.15)'" onmouseleave="this.style.background='rgba(16, 185, 129, 0.05)'">✏️ Edit</button>`;
+  }
+
+  // Changelog button HTML
+  let changelogBtnHtml = '';
+  const history = window.db.review_history ? window.db.review_history.filter(h => h.review_id === r.id) : [];
+  if (history.length > 0) {
+    changelogBtnHtml = `<div style="margin-top: 0.5rem;"><button onclick="viewReviewHistory('${r.id}')" style="background: transparent; border: none; color: #a1a1aa; cursor: pointer; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(255,255,255,0.15); transition: background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background='transparent'">🕒 View Edit History (${history.length})</button></div>`;
+  }
+
+  // Comments Section HTML
+  const comments = window.db.comments ? window.db.comments.filter(c => c.review_id === r.id) : [];
+  let commentsListHtml = '';
+  if (comments.length > 0) {
+    comments.sort((a, b) => new Date(a.created_at || a.id) - new Date(b.created_at || b.id));
+    commentsListHtml = `
+      <div class="comments-list" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; padding-left: 0.5rem; border-left: 2px solid rgba(255,255,255,0.08);">
+        ${comments.map(c => {
+          const author = window.db.profiles.find(p => p.id === c.author_id);
+          const name = author ? author.username : 'deactivated_user';
+          return `
+            <div class="comment-item" style="font-size: 0.8rem; line-height: 1.35; color: #d4d4d8;">
+              <span style="color: var(--color-primary); font-weight: 600;">@${sanitizeHTML(name)}</span>: 
+              <span>${sanitizeHTML(c.content)}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  let replyFormHtml = '';
+  if (currentUser) {
+    replyFormHtml = `
+      <form onsubmit="postComment('${r.id}', event)" style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+        <input type="text" placeholder="Add a comment..." required style="flex-grow: 1; font-size: 0.8rem; padding: 0.25rem 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;" />
+        <button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem; width: auto; height: auto; margin: 0;">Reply</button>
+      </form>
+    `;
+  }
+
+  const commentsSectionHtml = `
+    <div class="comments-section" style="margin-top: 0.75rem; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.5rem;">
+      <h4 style="margin: 0; font-size: 0.85rem; color: #a1a1aa; font-weight: 600;">Comments (${comments.length})</h4>
+      ${commentsListHtml}
+      ${replyFormHtml}
+    </div>
+  `;
+
   // Follow/Unfollow button HTML
   let followBtnHtml = '';
   if (currentUser && r.author && r.author_id !== currentUser.id) {
@@ -608,12 +660,14 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
         <div style="display:flex; gap:0.5rem; align-items:center;">
           ${verifyBadge}
           <span class="post-date" style="font-size:0.75rem; color:#71717a;">${new Date(r.created_at).toLocaleDateString()}</span>
+          ${editBtnHtml}
           ${deleteBtnHtml}
         </div>
       </div>
       <p class="post-body-text" style="font-size:0.9rem; line-height:1.45; color:#e4e4e7;">${sanitizeHTML(r.raw_content)}</p>
       ${paramsHtml}
       ${tagsHtml}
+      ${changelogBtnHtml}
       
       <div class="post-footer-row" style="display:flex; align-items:center; justify-content:space-between; margin-top:1rem; border-top:1px solid var(--border-color); padding-top:0.75rem;">
         <div class="post-votes-summary" style="font-size:0.8rem; color:#a1a1aa;">
@@ -625,6 +679,7 @@ function renderReviewCard(r, parentContainer, settingsRevealConsent) {
           <button class="${disputeBtnClass}" onclick="castFeedVote('${r.id}', 'dispute')">👎 Dispute</button>
         </div>
       </div>
+      ${commentsSectionHtml}
     </div>
   `;
 

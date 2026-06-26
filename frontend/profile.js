@@ -722,8 +722,57 @@ function renderMyReviewsFeed() {
       poeBadge = `<span class="review-badge poe-verified">${badgeLabel}</span>`;
     }
 
+    // Edit button HTML - since it's "my reviews", currentUser is definitely the author
+    const editBtnHtml = `<button class="btn-edit-review" onclick="editReviewInline('${r.id}')" style="background: transparent; border: none; color: var(--color-primary); cursor: pointer; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.05); margin-right: 0.25rem;" onmouseenter="this.style.background='rgba(16, 185, 129, 0.15)'" onmouseleave="this.style.background='rgba(16, 185, 129, 0.05)'">✏️ Edit</button>`;
+
+    // Changelog button HTML
+    let changelogBtnHtml = '';
+    const history = window.db.review_history ? window.db.review_history.filter(h => h.review_id === r.id) : [];
+    if (history.length > 0) {
+      changelogBtnHtml = `<div style="margin-top: 0.5rem;"><button onclick="viewReviewHistory('${r.id}')" style="background: transparent; border: none; color: #a1a1aa; cursor: pointer; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(255,255,255,0.15); transition: background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background='transparent'">🕒 View Edit History (${history.length})</button></div>`;
+    }
+
+    // Comments Section HTML
+    const comments = window.db.comments ? window.db.comments.filter(c => c.review_id === r.id) : [];
+    let commentsListHtml = '';
+    if (comments.length > 0) {
+      comments.sort((a, b) => new Date(a.created_at || a.id) - new Date(b.created_at || b.id));
+      commentsListHtml = `
+        <div class="comments-list" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; padding-left: 0.5rem; border-left: 2px solid rgba(255,255,255,0.08);">
+          ${comments.map(c => {
+            const author = window.db.profiles.find(p => p.id === c.author_id);
+            const name = author ? author.username : 'deactivated_user';
+            return `
+              <div class="comment-item" style="font-size: 0.8rem; line-height: 1.35; color: #d4d4d8;">
+                <span style="color: var(--color-primary); font-weight: 600;">@${sanitizeHTML(name)}</span>: 
+                <span>${sanitizeHTML(c.content)}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    let replyFormHtml = '';
+    if (currentUser) {
+      replyFormHtml = `
+        <form onsubmit="postComment('${r.id}', event)" style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+          <input type="text" placeholder="Add a comment..." required style="flex-grow: 1; font-size: 0.8rem; padding: 0.25rem 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #fff;" />
+          <button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem; width: auto; height: auto; margin: 0;">Reply</button>
+        </form>
+      `;
+    }
+
+    const commentsSectionHtml = `
+      <div class="comments-section" style="margin-top: 0.75rem; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.5rem;">
+        <h4 style="margin: 0; font-size: 0.85rem; color: #a1a1aa; font-weight: 600;">Comments (${comments.length})</h4>
+        ${commentsListHtml}
+        ${replyFormHtml}
+      </div>
+    `;
+
     const html = `
-      <div class="review-card ${cardClass}" style="margin-bottom: 0px; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word;">
+      <div class="review-card ${cardClass}" data-review-id="${r.id}" style="margin-bottom: 0px; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word;">
         <div class="review-card-header">
           <div>
             <strong>${node ? sanitizeHTML(node.name) : 'Unknown Node'}</strong>
@@ -734,6 +783,7 @@ function renderMyReviewsFeed() {
             ${parametersLine}
           </div>
           <div class="review-badge-container">
+            ${editBtnHtml}
             ${poeBadge}
           </div>
         </div>
@@ -753,12 +803,14 @@ function renderMyReviewsFeed() {
 
         ${disputeNotice}
         ${votesHTML}
+        ${changelogBtnHtml}
         <div class="review-card-footer" style="margin-top: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
           <div class="consensus-stats">
             <span class="consensus-ratio-formula">θ = ${theta.toFixed(2)}</span>
             <span>(Vouch: ${wv.toFixed(2)} | Dispute: ${wd.toFixed(2)})</span>
           </div>
         </div>
+        ${commentsSectionHtml}
       </div>
     `;
 

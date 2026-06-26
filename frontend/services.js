@@ -295,6 +295,8 @@ window.getSeedData = function() {
     invite_tokens: [],
     reviews: [],
     vouches_disputes: [],
+    review_history: [],
+    comments: [],
     tags: [
       { id: 1, name: 'third wave coffee shop' },
       { id: 2, name: 'fishing' },
@@ -551,6 +553,40 @@ window.syncLiveReviews = async function(limit = null, offset = null) {
                 window.db.vouches_disputes[idx] = v;
               } else {
                 window.db.vouches_disputes.push(v);
+              }
+            });
+          }
+        }
+
+        // Merge review_history
+        if (result.review_history) {
+          if (limit === null && offset === null) {
+            window.db.review_history = result.review_history;
+          } else {
+            if (!window.db.review_history) window.db.review_history = [];
+            result.review_history.forEach(h => {
+              const idx = window.db.review_history.findIndex(localH => localH.id === h.id);
+              if (idx > -1) {
+                window.db.review_history[idx] = h;
+              } else {
+                window.db.review_history.push(h);
+              }
+            });
+          }
+        }
+
+        // Merge comments
+        if (result.comments) {
+          if (limit === null && offset === null) {
+            window.db.comments = result.comments;
+          } else {
+            if (!window.db.comments) window.db.comments = [];
+            result.comments.forEach(c => {
+              const idx = window.db.comments.findIndex(localC => localC.id === c.id);
+              if (idx > -1) {
+                window.db.comments[idx] = c;
+              } else {
+                window.db.comments.push(c);
               }
             });
           }
@@ -891,4 +927,255 @@ window.checkSpatialDeduplication = async function(coordsStr) {
     }
   }
   return null;
+};
+
+window.editReviewInline = function(reviewId) {
+  const cardContainer = document.querySelector(`[data-review-id="${reviewId}"]`);
+  if (!cardContainer) return;
+  const bodyTextEl = cardContainer.querySelector('.post-body-text') || cardContainer.querySelector('.review-content');
+  if (!bodyTextEl) return;
+  
+  // If already editing, do nothing
+  if (cardContainer.querySelector('.edit-review-textarea')) return;
+
+  const review = window.db.reviews.find(r => r.id === reviewId);
+  if (!review) return;
+  const rawContent = review.raw_content;
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'edit-review-textarea';
+  textarea.value = rawContent;
+  textarea.style.width = '100%';
+  textarea.style.minHeight = '100px';
+  textarea.style.background = 'rgba(0,0,0,0.3)';
+  textarea.style.border = '1px solid var(--border-color)';
+  textarea.style.borderRadius = 'var(--radius-sm)';
+  textarea.style.color = '#fff';
+  textarea.style.padding = '0.5rem';
+  textarea.style.marginTop = '0.5rem';
+  textarea.style.fontFamily = 'inherit';
+  textarea.style.fontSize = '0.9rem';
+
+  const actionsDiv = document.createElement('div');
+  actionsDiv.style.display = 'flex';
+  actionsDiv.style.gap = '0.5rem';
+  actionsDiv.style.marginTop = '0.5rem';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.innerText = 'Save';
+  saveBtn.style.padding = '0.2rem 0.6rem';
+  saveBtn.style.fontSize = '0.75rem';
+  saveBtn.style.width = 'auto';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn';
+  cancelBtn.innerText = 'Cancel';
+  cancelBtn.style.padding = '0.2rem 0.6rem';
+  cancelBtn.style.fontSize = '0.75rem';
+  cancelBtn.style.width = 'auto';
+
+  actionsDiv.appendChild(saveBtn);
+  actionsDiv.appendChild(cancelBtn);
+
+  bodyTextEl.style.display = 'none';
+  bodyTextEl.parentNode.insertBefore(textarea, bodyTextEl.nextSibling);
+  textarea.parentNode.insertBefore(actionsDiv, textarea.nextSibling);
+
+  cancelBtn.addEventListener('click', () => {
+    textarea.remove();
+    actionsDiv.remove();
+    bodyTextEl.style.display = 'block';
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const newContent = textarea.value.trim();
+    if (!newContent) {
+      alert("Review content cannot be empty.");
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'Saving...';
+    cancelBtn.disabled = true;
+
+    try {
+      const response = await fetch('https://api.inviteonlyreviews.com/api/reviews/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reviewId, newContent })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Update local db
+          review.raw_content = newContent;
+          if (!window.db.review_history) window.db.review_history = [];
+          window.db.review_history.push({
+            id: 'local_hist_' + Date.now(),
+            review_id: reviewId,
+            old_content: rawContent,
+            changed_at: new Date().toISOString()
+          });
+          await window.saveDbState();
+
+          // Refresh view
+          if (typeof window.renderFeedReviews === 'function') window.renderFeedReviews();
+          if (typeof window.renderMyReviewsFeed === 'function') window.renderMyReviewsFeed();
+        } else {
+          alert("Error: " + (result.error || "Failed to save edits."));
+          saveBtn.disabled = false;
+          saveBtn.innerText = 'Save';
+          cancelBtn.disabled = false;
+        }
+      } else {
+        const result = await response.json().catch(() => ({}));
+        alert("Error: " + (result.error || "Failed to save edits."));
+        saveBtn.disabled = false;
+        saveBtn.innerText = 'Save';
+        cancelBtn.disabled = false;
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error: Failed to connect to server.");
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'Save';
+      cancelBtn.disabled = false;
+    }
+  });
+};
+
+window.viewReviewHistory = function(reviewId) {
+  const history = window.db.review_history ? window.db.review_history.filter(h => h.review_id === reviewId) : [];
+  if (history.length === 0) return;
+  // Sort history by changed_at DESC
+  history.sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-modal-overlay';
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.width = '100vw';
+  overlay.style.height = '100vh';
+  overlay.style.background = 'rgba(0,0,0,0.85)';
+  overlay.style.display = 'flex';
+  overlay.style.alignItems = 'center';
+  overlay.style.justifyContent = 'center';
+  overlay.style.zIndex = '99999';
+
+  const modal = document.createElement('div');
+  modal.className = 'confirm-modal';
+  modal.style.maxWidth = '550px';
+  modal.style.width = '90%';
+  modal.style.maxHeight = '80vh';
+  modal.style.overflowY = 'auto';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'confirm-modal-title';
+  titleEl.innerText = '🕒 Edit History';
+
+  const listContainer = document.createElement('div');
+  listContainer.className = 'confirm-modal-body';
+  listContainer.style.display = 'flex';
+  listContainer.style.flexDirection = 'column';
+  listContainer.style.gap = '1.25rem';
+  listContainer.style.maxHeight = '50vh';
+  listContainer.style.overflowY = 'auto';
+
+  history.forEach((h, idx) => {
+    const item = document.createElement('div');
+    item.style.paddingBottom = '1rem';
+    if (idx < history.length - 1) {
+      item.style.borderBottom = '1px solid rgba(255,255,255,0.08)';
+    }
+    
+    const timeEl = document.createElement('div');
+    timeEl.style.fontSize = '0.75rem';
+    timeEl.style.color = 'var(--color-primary)';
+    timeEl.style.marginBottom = '0.5rem';
+    timeEl.innerText = `Version from ${new Date(h.changed_at).toLocaleString()}`;
+    
+    const contentEl = document.createElement('p');
+    contentEl.style.fontSize = '0.85rem';
+    contentEl.style.color = '#e4e4e7';
+    contentEl.style.margin = '0';
+    contentEl.style.whiteSpace = 'pre-wrap';
+    contentEl.innerText = h.old_content;
+
+    item.appendChild(timeEl);
+    item.appendChild(contentEl);
+    listContainer.appendChild(item);
+  });
+
+  const buttonsDiv = document.createElement('div');
+  buttonsDiv.className = 'confirm-modal-buttons';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.innerText = 'Close';
+  closeBtn.addEventListener('click', () => {
+    document.body.removeChild(overlay);
+  });
+
+  buttonsDiv.appendChild(closeBtn);
+
+  modal.appendChild(titleEl);
+  modal.appendChild(listContainer);
+  modal.appendChild(buttonsDiv);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+};
+
+window.postComment = async function(reviewId, event) {
+  event.preventDefault();
+  const form = event.target;
+  const input = form.querySelector('input');
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) return;
+
+  const btn = form.querySelector('button');
+  if (btn) btn.disabled = true;
+
+  try {
+    const response = await fetch('https://api.inviteonlyreviews.com/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ reviewId, content })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        // Add locally
+        if (!window.db.comments) window.db.comments = [];
+        window.db.comments.push({
+          id: 'local_c_' + Date.now(),
+          author_id: window.currentUser.id,
+          review_id: reviewId,
+          content: content,
+          created_at: new Date().toISOString()
+        });
+        await window.saveDbState();
+
+        // Refresh views
+        if (typeof window.renderFeedReviews === 'function') window.renderFeedReviews();
+        if (typeof window.renderMyReviewsFeed === 'function') window.renderMyReviewsFeed();
+      } else {
+        alert("Error: " + (result.error || "Failed to post comment."));
+      }
+    } else {
+      const result = await response.json().catch(() => ({}));
+      alert("Error: " + (result.error || "Failed to post comment."));
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Network error: Failed to connect to server.");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 };

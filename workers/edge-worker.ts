@@ -596,9 +596,9 @@ export default {
         });
       }
 
-      // Route 6: Reviews Endpoint (GET all reviews/tags/review_tags/nodes/vouches)
+      // Route 6: Reviews Endpoint (GET all reviews/tags/review_tags/nodes/vouches/history/comments)
       if (url.pathname === '/api/reviews' && request.method === 'GET') {
-        const [reviewsRes, tagsRes, reviewTagsRes, nodesRes, vouchesRes] = await Promise.all([
+        const [reviewsRes, tagsRes, reviewTagsRes, nodesRes, vouchesRes, historyRes, commentsRes] = await Promise.all([
           fetch(`${env.SUPABASE_URL}/rest/v1/reviews?select=*`, {
             method: 'GET',
             headers: {
@@ -633,10 +633,24 @@ export default {
               'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
               'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
             }
+          }),
+          fetch(`${env.SUPABASE_URL}/rest/v1/review_history?select=*`, {
+            method: 'GET',
+            headers: {
+              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+            }
+          }),
+          fetch(`${env.SUPABASE_URL}/rest/v1/comments?select=*`, {
+            method: 'GET',
+            headers: {
+              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+            }
           })
         ]);
 
-        if (!reviewsRes.ok || !tagsRes.ok || !reviewTagsRes.ok || !nodesRes.ok || !vouchesRes.ok) {
+        if (!reviewsRes.ok || !tagsRes.ok || !reviewTagsRes.ok || !nodesRes.ok || !vouchesRes.ok || !historyRes.ok || !commentsRes.ok) {
           return new Response(JSON.stringify({ error: 'Failed to fetch reviews data from database.' }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -648,8 +662,10 @@ export default {
         const review_tags = await reviewTagsRes.json();
         const nodes = await nodesRes.json();
         const vouches_disputes = await vouchesRes.json();
+        const review_history = await historyRes.json();
+        const comments = await commentsRes.json();
 
-        return new Response(JSON.stringify({ success: true, reviews, tags, review_tags, nodes, vouches_disputes }), {
+        return new Response(JSON.stringify({ success: true, reviews, tags, review_tags, nodes, vouches_disputes, review_history, comments }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
@@ -1237,6 +1253,129 @@ export default {
             'Content-Type': 'application/json',
             'Set-Cookie': `current_user_key=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureFlag}`
           })
+        });
+      }
+
+      // New Route: POST /api/reviews/edit
+      if (url.pathname === '/api/reviews/edit' && request.method === 'POST') {
+        const authKey = await getAuthKey(request);
+        if (!authKey) {
+          return new Response(JSON.stringify({ error: 'Unauthorized.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        const { reviewId, newContent } = await request.json();
+        if (!reviewId || !newContent) {
+          return new Response(JSON.stringify({ error: 'Missing parameters.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Unauthorized.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        if (!profile.is_active) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Account is suspended.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+
+        // Fetch existing review to check author_id
+        const reviewRes = await fetch(`${env.SUPABASE_URL}/rest/v1/reviews?id=eq.${reviewId}&select=*`, {
+          method: 'GET',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+          }
+        });
+        if (!reviewRes.ok) {
+          return new Response(JSON.stringify({ error: 'Review not found.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        const reviews = await reviewRes.json();
+        if (!reviews || reviews.length === 0) {
+          return new Response(JSON.stringify({ error: 'Review not found.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        const existingReview = reviews[0];
+        if (existingReview.author_id !== profile.id) {
+          return new Response(JSON.stringify({ error: 'Forbidden: You are not the author of this review.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+
+        // Insert current content into review_history
+        const historyRes = await fetch(`${env.SUPABASE_URL}/rest/v1/review_history`, {
+          method: 'POST',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            review_id: reviewId,
+            old_content: existingReview.raw_content,
+            changed_at: new Date().toISOString()
+          })
+        });
+        if (!historyRes.ok) {
+          const errText = await historyRes.text();
+          return new Response(JSON.stringify({ error: `Failed to insert history: ${errText}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+
+        // Update reviews table
+        const updateRes = await fetch(`${env.SUPABASE_URL}/rest/v1/reviews?id=eq.${reviewId}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            raw_content: newContent
+          })
+        });
+        if (!updateRes.ok) {
+          const errText = await updateRes.text();
+          return new Response(JSON.stringify({ error: `Failed to update review: ${errText}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // New Route: POST /api/comments
+      if (url.pathname === '/api/comments' && request.method === 'POST') {
+        const authKey = await getAuthKey(request);
+        if (!authKey) {
+          return new Response(JSON.stringify({ error: 'Unauthorized.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        const { reviewId, content } = await request.json();
+        if (!reviewId || !content) {
+          return new Response(JSON.stringify({ error: 'Missing parameters.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Unauthorized.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+        if (!profile.is_active) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Account is suspended.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+
+        // Insert comment
+        const commentRes = await fetch(`${env.SUPABASE_URL}/rest/v1/comments`, {
+          method: 'POST',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            author_id: profile.id,
+            review_id: reviewId,
+            content: content
+          })
+        });
+        if (!commentRes.ok) {
+          const errText = await commentRes.text();
+          return new Response(JSON.stringify({ error: `Failed to insert comment: ${errText}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
 
