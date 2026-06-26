@@ -262,7 +262,7 @@ function showDashboard() {
   renderMyReviewsFeed();
 
   // Searchable Dropdowns
-  makeSelectSearchable('review-target-node', 'Type to search location...');
+  initSearchFirstLocationSelector();
   makeSelectSearchable('review-new-parent-node', 'Type to search parent category/city...');
   makeSelectSearchable('review-new-global-entity', 'Type to search blueprint spec...');
   makeSelectSearchable('review-new-leaf-type', 'Type to search leaf type...');
@@ -1725,7 +1725,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
     }
 
     renderMyReviewsFeed();
-    alert("Immutable review successfully posted to the network!");
+    showToastNotification("Review Posted Successfully!");
   };
 
   // Run sequential pipeline
@@ -1926,6 +1926,185 @@ function makeSelectSearchable(selectId, placeholderText = "Search options...") {
       input.value = select.options[select.selectedIndex].text;
     }
   });
+}
+
+// Search-First Autocomplete Selector for locations
+function initSearchFirstLocationSelector() {
+  const searchInput = document.getElementById('review-target-search');
+  const autocompleteMenu = document.getElementById('review-target-autocomplete-menu');
+  const breadcrumbPreview = document.getElementById('review-target-breadcrumb-preview');
+  const breadcrumbText = document.getElementById('review-target-breadcrumb-text');
+  const targetNodeSelect = document.getElementById('review-target-node');
+
+  if (!searchInput || !autocompleteMenu || !targetNodeSelect) return;
+
+  const updateSuggestions = () => {
+    autocompleteMenu.innerHTML = '';
+    const query = searchInput.value.trim().toLowerCase();
+    
+    const filteredNodes = db.nodes.filter(node => {
+      if (!query) return true;
+      return node.name && node.name.toLowerCase().includes(query);
+    });
+
+    const limitedNodes = filteredNodes.slice(0, 50);
+
+    if (limitedNodes.length === 0) {
+      const noRes = document.createElement('div');
+      noRes.innerText = 'No matches found';
+      noRes.style.padding = '0.75rem';
+      noRes.style.color = 'var(--color-text-dim)';
+      noRes.style.fontSize = '0.85rem';
+      noRes.style.textAlign = 'center';
+      autocompleteMenu.appendChild(noRes);
+      return;
+    }
+
+    limitedNodes.forEach(node => {
+      const parentNode = node.parent_id ? db.nodes.find(n => n.id === node.parent_id) : null;
+      const typeLabel = node.node_type ? (node.node_type.charAt(0).toUpperCase() + node.node_type.slice(1).replace('_', ' ')) : '';
+      const parentName = parentNode ? parentNode.name : '';
+      const displayText = parentName ? `${node.name} (${typeLabel} under ${parentName})` : `${node.name} (${typeLabel})`;
+
+      const item = document.createElement('div');
+      item.className = 'searchable-select-item';
+      item.innerText = displayText;
+      item.style.padding = '0.75rem';
+      item.style.cursor = 'pointer';
+      item.style.fontSize = '0.9rem';
+      item.style.color = '#e2e8f0';
+      item.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+      item.style.transition = 'background 0.2s';
+
+      if (parseInt(targetNodeSelect.value) === node.id) {
+        item.style.background = 'rgba(16, 185, 129, 0.1)';
+        item.style.color = 'var(--color-primary)';
+        item.style.fontWeight = '500';
+      }
+
+      item.addEventListener('mouseenter', () => {
+        item.style.background = 'rgba(255,255,255,0.05)';
+      });
+      item.addEventListener('mouseleave', () => {
+        if (parseInt(targetNodeSelect.value) === node.id) {
+          item.style.background = 'rgba(16, 185, 129, 0.1)';
+        } else {
+          item.style.background = 'transparent';
+        }
+      });
+
+      item.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        searchInput.value = node.name;
+        targetNodeSelect.value = node.id;
+        
+        const pathString = getNodePathString(node).split(' / ').join(' > ');
+        if (breadcrumbText && breadcrumbPreview) {
+          breadcrumbText.innerText = pathString;
+          breadcrumbPreview.classList.remove('hidden');
+        }
+        
+        autocompleteMenu.classList.add('hidden');
+        targetNodeSelect.dispatchEvent(new Event('change'));
+      });
+
+      autocompleteMenu.appendChild(item);
+    });
+  };
+
+  const syncInitialSelection = () => {
+    const selectedId = parseInt(targetNodeSelect.value);
+    if (!isNaN(selectedId)) {
+      const selectedNode = db.nodes.find(n => n.id === selectedId);
+      if (selectedNode) {
+        searchInput.value = selectedNode.name;
+        const pathString = getNodePathString(selectedNode).split(' / ').join(' > ');
+        if (breadcrumbText && breadcrumbPreview) {
+          breadcrumbText.innerText = pathString;
+          breadcrumbPreview.classList.remove('hidden');
+        }
+      }
+    }
+  };
+
+  syncInitialSelection();
+
+  searchInput.addEventListener('focus', () => {
+    autocompleteMenu.classList.remove('hidden');
+    updateSuggestions();
+  });
+
+  searchInput.addEventListener('input', () => {
+    autocompleteMenu.classList.remove('hidden');
+    updateSuggestions();
+  });
+
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      autocompleteMenu.classList.add('hidden');
+    }, 150);
+  });
+
+  targetNodeSelect.addEventListener('change', () => {
+    const selectedId = parseInt(targetNodeSelect.value);
+    if (!isNaN(selectedId)) {
+      const selectedNode = db.nodes.find(n => n.id === selectedId);
+      if (selectedNode) {
+        searchInput.value = selectedNode.name;
+        const pathString = getNodePathString(selectedNode).split(' / ').join(' > ');
+        if (breadcrumbText && breadcrumbPreview) {
+          breadcrumbText.innerText = pathString;
+          breadcrumbPreview.classList.remove('hidden');
+        }
+      } else {
+        searchInput.value = '';
+        if (breadcrumbPreview) breadcrumbPreview.classList.add('hidden');
+      }
+    } else {
+      searchInput.value = '';
+      if (breadcrumbPreview) breadcrumbPreview.classList.add('hidden');
+    }
+  });
+}
+
+function showToastNotification(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast-notification';
+  toast.innerHTML = `<span style="margin-right: 8px;">✓</span> ${message}`;
+  
+  toast.style.position = 'fixed';
+  toast.style.bottom = '24px';
+  toast.style.right = '24px';
+  toast.style.background = 'rgba(16, 185, 129, 0.9)';
+  toast.style.backdropFilter = 'blur(10px)';
+  toast.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+  toast.style.color = '#ffffff';
+  toast.style.padding = '0.75rem 1.5rem';
+  toast.style.borderRadius = 'var(--radius-sm, 6px)';
+  toast.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3)';
+  toast.style.zIndex = '9999';
+  toast.style.fontFamily = 'var(--font-heading, sans-serif)';
+  toast.style.fontSize = '0.9rem';
+  toast.style.fontWeight = '500';
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateY(20px)';
+  toast.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+
+  document.body.appendChild(toast);
+
+  // Trigger reflow to start transition
+  toast.offsetHeight;
+
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateY(0)';
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(20px)';
+    setTimeout(() => {
+      toast.remove();
+    }, 400);
+  }, 3000);
 }
 
 function debounce(func, wait) {
