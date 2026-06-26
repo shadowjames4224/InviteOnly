@@ -1394,7 +1394,7 @@ function renderNodeDetail(node) {
 
   const isMod = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
   let modActionsButtonHtml = '';
-  if (isMod && node.parent_id !== null) {
+  if (isMod && (window.managementModeActive || node.parent_id !== null)) {
     modActionsButtonHtml = `
       <button class="btn btn-danger btn-sm" onclick="deleteNodeFromDirectory(${node.id})" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 0.25rem; width: auto; cursor: pointer; margin-left: 0.5rem;">
         🗑️ Delete Space
