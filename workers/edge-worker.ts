@@ -680,120 +680,42 @@ export default {
           });
         }
 
-        // 1. Insert new nodes if any via Postgres RPC
-        if (newNodes && Array.isArray(newNodes) && newNodes.length > 0) {
-          const rpcRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_or_create_nested_nodes`, {
-            method: 'POST',
-            headers: {
-              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-              'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              parent_node_id: parentNodeId ? parseInt(parentNodeId) : null,
-              node_payloads: newNodes
-            })
-          });
-          
-          if (!rpcRes.ok) {
-            const errText = await rpcRes.text();
-            return new Response(JSON.stringify({ error: `Failed to execute taxonomy RPC: ${errText}` }), {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          }
-          
-          // RPC returns the ID of the leaf node
-          const createdNodeId = await rpcRes.json();
-          review.node_id = createdNodeId;
-        }
-
-        // 2. Insert review
-        const reviewInsert = await fetch(`${env.SUPABASE_URL}/rest/v1/reviews`, {
-          method: 'POST',
+        // Insert review and related nodes/tags atomically via submit_review_transaction RPC
+        const rpcRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/submit_review_transaction`, {
+          method: "POST",
           headers: {
-            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
+            "apikey": env.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            id: review.id,
-            node_id: review.node_id,
-            execution_instance_id: review.execution_instance_id || null,
-            author_id: profile.id,
-            raw_content: review.raw_content,
-            is_verified_experience: review.is_verified_experience,
-            param_val_1: review.param_val_1 || null,
-            param_val_2: review.param_val_2 || null,
-            param_val_3: review.param_val_3 || null,
-            verification_method: review.verification_method || null,
-            gps_dop: review.gps_dop || null
+            p_review_id: review.id,
+            p_author_id: profile.id,
+            p_node_id: review.node_id || null,
+            p_parent_node_id: parentNodeId ? parseInt(parentNodeId) : null,
+            p_new_nodes: newNodes && newNodes.length > 0 ? newNodes : null,
+            p_raw_content: review.raw_content,
+            p_is_verified: review.is_verified_experience,
+            p_verification_method: review.verification_method || null,
+            p_param_1: review.param_val_1 || null,
+            p_param_2: review.param_val_2 || null,
+            p_param_3: review.param_val_3 || null,
+            p_gps_dop: review.gps_dop || null,
+            p_tags: tags && tags.length > 0 ? tags : null
           })
         });
 
-        if (!reviewInsert.ok) {
-          const errText = await reviewInsert.text();
-          return new Response(JSON.stringify({ error: `Failed to insert review: ${errText}` }), {
+        const rpcData = await rpcRes.json();
+        if (!rpcRes.ok || !rpcData.success) {
+          return new Response(JSON.stringify({ error: rpcData.message || "Failed to submit review transaction." }), {
             status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
-        }
-
-        // 3. Insert tags and link them
-        if (tags && Array.isArray(tags) && tags.length > 0) {
-          for (const tagStr of tags) {
-            const tagSelect = await fetch(`${env.SUPABASE_URL}/rest/v1/tags?name=eq.${encodeURIComponent(tagStr)}&select=id`, {
-              method: 'GET',
-              headers: {
-                'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-                'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
-              }
-            });
-            let tagId;
-            if (tagSelect.ok) {
-              const tagsFound = await tagSelect.json();
-              if (tagsFound && tagsFound.length > 0) {
-                tagId = tagsFound[0].id;
-              }
-            }
-
-            if (!tagId) {
-              const tagInsert = await fetch(`${env.SUPABASE_URL}/rest/v1/tags`, {
-                method: 'POST',
-                headers: {
-                  'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-                  'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-                  'Content-Type': 'application/json',
-                  'Prefer': 'return=representation'
-                },
-                body: JSON.stringify({ name: tagStr })
-              });
-              if (tagInsert.ok) {
-                const insertedTags = await tagInsert.json();
-                if (insertedTags && insertedTags.length > 0) {
-                  tagId = insertedTags[0].id;
-                }
-              }
-            }
-
-            if (tagId) {
-              await fetch(`${env.SUPABASE_URL}/rest/v1/review_tags`, {
-                method: 'POST',
-                headers: {
-                  'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-                  'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ review_id: review.id, tag_id: tagId })
-              });
-            }
-          }
         }
 
         return new Response(JSON.stringify({ success: true }), {
           status: 201,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
 
