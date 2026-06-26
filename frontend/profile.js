@@ -117,14 +117,13 @@ window.refreshActiveViews = function() {
 };
 
 async function updateProfilesOnEdge(updatesList) {
-  const userKey = sessionStorage.getItem('current_user_key');
-  if (!userKey) return;
+  if (!currentUser) return;
   try {
     const response = await fetch('https://api.inviteonlyreviews.com/api/admin/manage-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: userKey,
         action: 'update',
         updates: updatesList
       })
@@ -140,14 +139,13 @@ async function updateProfilesOnEdge(updatesList) {
 }
 
 async function deleteProfileOnEdge(profileId) {
-  const userKey = sessionStorage.getItem('current_user_key');
-  if (!userKey) return;
+  if (!currentUser) return;
   try {
     const response = await fetch('https://api.inviteonlyreviews.com/api/admin/manage-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: userKey,
         action: 'delete',
         targetId: profileId
       })
@@ -163,14 +161,13 @@ async function deleteProfileOnEdge(profileId) {
 }
 
 async function createProfileOnEdge(profileData) {
-  const userKey = sessionStorage.getItem('current_user_key');
-  if (!userKey) return;
+  if (!currentUser) return;
   try {
     const response = await fetch('https://api.inviteonlyreviews.com/api/admin/manage-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: userKey,
         action: 'create',
         profile: profileData
       })
@@ -227,22 +224,16 @@ function checkSuspensions() {
 // 3. UI Controller & Rendering
 // ----------------------------------------------------
 function checkAuthentication() {
-  const sessionKey = sessionStorage.getItem('current_user_key');
-  if (sessionKey) {
-    const profile = db.profiles.find(p => p.access_key === sessionKey);
-    // Profile must exist and be active to stay authenticated
-    if (profile && profile.is_active) {
-      currentUser = profile;
-      showDashboard();
-      return;
-    }
+  if (currentUser && currentUser.is_active) {
+    showDashboard();
+  } else {
+    showLoginGate();
   }
-  showLoginGate();
 }
 
 function showLoginGate() {
   currentUser = null;
-  sessionStorage.removeItem('current_user_key');
+  fetch('https://api.inviteonlyreviews.com/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(e => {});
   document.getElementById('login-gate').classList.remove('hidden');
   document.getElementById('profile-content').classList.add('hidden');
   
@@ -512,13 +503,13 @@ window.releaseUser = async function(targetId) {
     return;
   }
 
-  const userKey = sessionStorage.getItem('current_user_key');
+  if (!currentUser) return;
   try {
     const response = await fetch('https://api.inviteonlyreviews.com/api/admin/release-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: userKey,
         targetId: targetId
       })
     });
@@ -589,8 +580,8 @@ function populateParentNodeDropdown() {
 // checkLineageCollusion, calculateReviewConsensus, and runLineageReputationDecay are imported/mapped from services.js
 
 // Global vote function exposed on the window so review card onclick attributes work
-window.castFeedVote = function(reviewId, type) {
-  loadDbState();
+window.castFeedVote = async function(reviewId, type) {
+  await loadDbState();
   if (!currentUser) {
     alert("Authentication Required: You must enter your Access Key to cast vouches or disputes.");
     return;
@@ -627,7 +618,7 @@ window.castFeedVote = function(reviewId, type) {
     });
   }
 
-  saveDbState();
+  await saveDbState();
 
   // Re-run reputation contagion calculations
   runLineageReputationDecay();
@@ -641,8 +632,8 @@ window.castFeedVote = function(reviewId, type) {
     headers: {
       'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify({
-      authKey: sessionStorage.getItem('current_user_key'),
       reviewId: reviewId,
       type: type,
       allocatedWeight: allocatedWeight
@@ -923,6 +914,7 @@ document.getElementById('btn-login')?.addEventListener('click', async () => {
     const res = await fetch('https://api.inviteonlyreviews.com/api/auth/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ authKey: keyInput })
     });
 
@@ -962,9 +954,8 @@ document.getElementById('btn-login')?.addEventListener('click', async () => {
       profile.access_key = keyInput;
       db.profiles.push(profile);
     }
-    saveDbState();
+    await saveDbState();
 
-    sessionStorage.setItem('current_user_key', keyInput);
     currentUser = profile;
     showDashboard();
 
@@ -1064,6 +1055,7 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
     const response = await fetch('https://api.inviteonlyreviews.com/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
         inviteToken: tokenInput,
         username: usernameInput,
@@ -1098,7 +1090,7 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
       demographic_group: document.getElementById('profile-reg-demographic')?.value || 'urban_affluent'
     });
 
-    saveDbState();
+    await saveDbState();
 
     errMsg.innerText = '✓ Success! Logged in as @' + usernameInput;
     errMsg.className = 'signup-status-message success';
@@ -1111,7 +1103,6 @@ document.getElementById('btn-profile-signup')?.addEventListener('click', async (
     document.getElementById('profile-reg-username').value = '';
 
     // Log in automatically
-    sessionStorage.setItem('current_user_key', accessKey);
     currentUser = db.profiles.find(p => p.id === newId);
 
     setTimeout(() => {
@@ -1160,12 +1151,6 @@ if (btnUpdateKeySuffix) {
       return;
     }
 
-    const currentKey = sessionStorage.getItem('current_user_key');
-    if (!currentKey) {
-      alert("Error: Authentication key lost from session. Please log in again.");
-      return;
-    }
-
     // Update access key
     const newKey = `key_${currentUser.username}_${suffix}`;
 
@@ -1176,8 +1161,8 @@ if (btnUpdateKeySuffix) {
       const res = await fetch('https://api.inviteonlyreviews.com/api/profile/update-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          authKey: currentKey,
           newKey: newKey
         })
       });
@@ -1195,11 +1180,8 @@ if (btnUpdateKeySuffix) {
         currentUser.access_key = newKey;
       }
 
-      // Save changes to localStorage database state
-      saveDbState();
-
-      // Update sessionStorage to keep session active with the new key
-      sessionStorage.setItem('current_user_key', newKey);
+      // Save changes to IndexedDB database state
+      await saveDbState();
 
       // Clear the input
       suffixInput.value = '';
@@ -1245,14 +1227,13 @@ document.getElementById('btn-generate-profile-token')?.addEventListener('click',
   }
 
   const rawToken = 'tkn_' + Math.random().toString(36).substr(2, 16);
-  const userKey = sessionStorage.getItem('current_user_key');
 
   try {
     const response = await fetch('https://api.inviteonlyreviews.com/api/generate-invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: userKey,
         rawToken: rawToken
       })
     });
@@ -1278,7 +1259,7 @@ document.getElementById('btn-generate-profile-token')?.addEventListener('click',
       rawToken: rawToken
     });
 
-    saveDbState();
+    await saveDbState();
     renderInviteHub();
   } catch (err) {
     alert('Error generating live invite: ' + err.message);
@@ -1287,7 +1268,7 @@ document.getElementById('btn-generate-profile-token')?.addEventListener('click',
 });
 
 // Submit review with simulated PoE EXIF/OCR/Enclave
-document.getElementById('btn-submit-profile-review')?.addEventListener('click', () => {
+document.getElementById('btn-submit-profile-review')?.addEventListener('click', async () => {
   const mode = document.querySelector('input[name="review-node-mode"]:checked').value;
   let nodeId;
   const globalEntityId = document.getElementById('review-new-global-entity')?.value || '';
@@ -1316,43 +1297,93 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
       return;
     }
 
-    const parentId = parseInt(parentIdVal);
-    const parts = pathText.split('/').map(p => p.trim()).filter(Boolean);
-    if (parts.length === 0) {
-      alert("Sub-path cannot be empty.");
-      return;
+    let finalNodeId = null;
+    let createNodesNeeded = true;
+
+    // Intercept leaf node creation if coordinates already exist nearby
+    if (coords) {
+      const existingNodeId = await window.checkSpatialDeduplication(coords);
+      if (existingNodeId) {
+        finalNodeId = existingNodeId;
+        createNodesNeeded = false;
+      }
     }
 
-    // Helper to generate slug
-    const toSlug = (str) => {
-      return str.toLowerCase()
-                .replace(/[^a-z0-9_]+/g, '_')
-                .replace(/^_+|_+$/g, '');
-    };
-
-    let currentParentId = parentId;
-    let createdCount = 0;
-
-    for (let i = 0; i < parts.length; i++) {
-      const name = parts[i];
-      const slug = toSlug(name);
-      if (!slug) {
-        alert(`Invalid name component: "${name}"`);
+    if (createNodesNeeded) {
+      const parentId = parseInt(parentIdVal);
+      const parts = pathText.split('/').map(p => p.trim()).filter(Boolean);
+      if (parts.length === 0) {
+        alert("Sub-path cannot be empty.");
         return;
       }
 
-      // Check if node exists under currentParentId
-      let existingNode = db.nodes.find(n => n.parent_id === currentParentId && n.slug === slug);
-      const isLeaf = (i === parts.length - 1);
+      // Helper to generate slug
+      const toSlug = (str) => {
+        return str.toLowerCase()
+                  .replace(/[^a-z0-9_]+/g, '_')
+                  .replace(/^_+|_+$/g, '');
+      };
 
-      if (existingNode) {
-        currentParentId = existingNode.id;
-        if (isLeaf) {
-          if (address) existingNode.address = address;
-          if (coords) existingNode.coordinates = coords;
-          if (globalEntityId && !existingNode.execution_instance_id) {
+      let currentParentId = parentId;
+      let createdCount = 0;
+
+      for (let i = 0; i < parts.length; i++) {
+        const name = parts[i];
+        const slug = toSlug(name);
+        if (!slug) {
+          alert(`Invalid name component: "${name}"`);
+          return;
+        }
+
+        // Check if node exists under currentParentId using findNormalizedNode
+        let existingNode = window.findNormalizedNode(currentParentId, name);
+        const isLeaf = (i === parts.length - 1);
+
+        if (existingNode) {
+          currentParentId = existingNode.id;
+          if (isLeaf) {
+            if (address) existingNode.address = address;
+            if (coords) existingNode.coordinates = coords;
+            if (globalEntityId && !existingNode.execution_instance_id) {
+              const arch = db.parameterized_archetypes.find(a => a.parent_entity_id === globalEntityId);
+              const instId = 'ei_' + globalEntityId.replace('ge_', '') + '_' + existingNode.id;
+              const newInstance = {
+                id: instId,
+                global_entity_id: globalEntityId,
+                current_archetype_id: arch ? arch.id : null,
+                location_name: name,
+                address: address || null,
+                coordinates: coords || null,
+                gps_dop: 1.0
+              };
+              db.execution_instances.push(newInstance);
+              existingNode.execution_instance_id = instId;
+            }
+          }
+        } else {
+          // Create new node
+          const nextId = Math.floor(Math.random() * 100000000) + 1000000;
+          const parentNode = db.nodes.find(n => n.id === currentParentId);
+          const parentPath = parentNode ? parentNode.path : '';
+          const newPath = parentPath ? `${parentPath}.${nextId}` : `${nextId}`;
+
+          // intermediate nodes are 'category', leaf node has selected type
+          const type = isLeaf ? leafType : 'category';
+
+          const newNode = {
+            id: nextId,
+            parent_id: currentParentId,
+            name: name,
+            slug: slug,
+            node_type: type,
+            path: newPath,
+            address: isLeaf && address ? address : null,
+            coordinates: isLeaf && coords ? coords : null
+          };
+
+          if (isLeaf && globalEntityId) {
             const arch = db.parameterized_archetypes.find(a => a.parent_entity_id === globalEntityId);
-            const instId = 'ei_' + globalEntityId.replace('ge_', '') + '_' + existingNode.id;
+            const instId = 'ei_' + globalEntityId.replace('ge_', '') + '_' + nextId;
             const newInstance = {
               id: instId,
               global_entity_id: globalEntityId,
@@ -1363,54 +1394,19 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
               gps_dop: 1.0
             };
             db.execution_instances.push(newInstance);
-            existingNode.execution_instance_id = instId;
+            newNode.execution_instance_id = instId;
           }
+
+          db.nodes.push(newNode);
+          newNodesList.push(newNode);
+          currentParentId = nextId;
+          createdCount++;
         }
-      } else {
-        // Create new node
-        const nextId = Math.floor(Math.random() * 100000000) + 1000000;
-        const parentNode = db.nodes.find(n => n.id === currentParentId);
-        const parentPath = parentNode ? parentNode.path : '';
-        const newPath = parentPath ? `${parentPath}.${nextId}` : `${nextId}`;
-
-        // intermediate nodes are 'category', leaf node has selected type
-        const type = isLeaf ? leafType : 'category';
-
-        const newNode = {
-          id: nextId,
-          parent_id: currentParentId,
-          name: name,
-          slug: slug,
-          node_type: type,
-          path: newPath,
-          address: isLeaf && address ? address : null,
-          coordinates: isLeaf && coords ? coords : null
-        };
-
-        if (isLeaf && globalEntityId) {
-          const arch = db.parameterized_archetypes.find(a => a.parent_entity_id === globalEntityId);
-          const instId = 'ei_' + globalEntityId.replace('ge_', '') + '_' + nextId;
-          const newInstance = {
-            id: instId,
-            global_entity_id: globalEntityId,
-            current_archetype_id: arch ? arch.id : null,
-            location_name: name,
-            address: address || null,
-            coordinates: coords || null,
-            gps_dop: 1.0
-          };
-          db.execution_instances.push(newInstance);
-          newNode.execution_instance_id = instId;
-        }
-
-        db.nodes.push(newNode);
-        newNodesList.push(newNode);
-        currentParentId = nextId;
-        createdCount++;
       }
+      finalNodeId = currentParentId;
     }
 
-    nodeId = currentParentId;
+    nodeId = finalNodeId;
     // Always re-populate dropdowns to ensure they are in sync
     populateMerchantDropdown();
     populateParentNodeDropdown();
@@ -1489,9 +1485,9 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
             targetCoordsStr = node ? (node.coordinates || "") : "";
           }
           
-          const targetCoords = parseCoords(targetCoordsStr);
+          const targetCoords = window.parseCoords(targetCoordsStr);
           if (targetCoords) {
-            const distance = getHaversineDistance(gpsCoords.latitude, gpsCoords.longitude, targetCoords.lat, targetCoords.lon);
+            const distance = window.getHaversineDistance(gpsCoords.latitude, gpsCoords.longitude, targetCoords.lat, targetCoords.lon);
             log(`Edge-Worker: Proximity check - Distance to target is ${distance.toFixed(1)} meters.`, "info");
             if (distance <= 100) {
               log(`Edge-Worker: Found EXIF GPS. Proximity matches target. (Distance ${distance.toFixed(1)}m)`, "success");
@@ -1538,7 +1534,11 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
             targetAliases = node ? (node.aliases || []) : [];
           }
           
-          const isOcrMatch = fuzzyMatchText(ocrText, targetName, targetAliases);
+          const isOcrMatch = await window.runWorkerTask('fuzzyMatchText', {
+            ocrText,
+            targetName,
+            aliases: targetAliases
+          });
           if (isOcrMatch) {
             log(`Serverless Worker: Keyword Match parsed successfully on invoice for "${targetName}".`, "success");
             ocrSuccess = true;
@@ -1553,7 +1553,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
     });
   }
 
-  const runPostReviewTransaction = () => {
+  const runPostReviewTransaction = async () => {
     log("PoE Pipeline complete. Appending review...", "command");
     
     let hasValidPoe = false;
@@ -1605,7 +1605,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
       });
     }
 
-    saveDbState();
+    await saveDbState();
 
     // Call Supabase API
     fetch('https://api.inviteonlyreviews.com/api/reviews', {
@@ -1613,8 +1613,8 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
       headers: {
         'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: sessionStorage.getItem('current_user_key'),
         review: newReview,
         newNodes: newNodesList,
         tags: tagsList
@@ -2006,68 +2006,7 @@ function initAddressVerification() {
   });
 }
 
-// Levenshtein Distance for fuzzy matching spelling variations
-function getEditDistance(a, b) {
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-  const matrix = [];
-  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
-        );
-      }
-    }
-  }
-  return matrix[b.length][a.length];
-}
-
-// Coordinate parsing helper
-function parseCoords(coordStr) {
-  if (!coordStr) return null;
-  const decimalRegex = /^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/;
-  const matchDecimal = coordStr.match(decimalRegex);
-  if (matchDecimal) {
-    return {
-      lat: parseFloat(matchDecimal[1]),
-      lon: parseFloat(matchDecimal[2])
-    };
-  }
-
-  const degRegex = /(-?\d+\.\d+)\s*°\s*([NESWnesw])\s*,\s*(-?\d+\.\d+)\s*°\s*([NESWnesw])/;
-  const matchDeg = coordStr.match(degRegex);
-  if (matchDeg) {
-    let lat = parseFloat(matchDeg[1]);
-    const latDir = matchDeg[2].toUpperCase();
-    let lon = parseFloat(matchDeg[3]);
-    const lonDir = matchDeg[4].toUpperCase();
-
-    if (latDir === 'S') lat = -lat;
-    if (lonDir === 'W') lon = -lon;
-    return { lat, lon };
-  }
-  return null;
-}
-
-// Haversine distance formula (in meters)
-function getHaversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+// parseCoords and getHaversineDistance are loaded from services.js
 
 // Extract GPS coords from EXIF using exifr library
 async function extractGpsFromImages(files) {
@@ -2117,47 +2056,7 @@ async function performOcrOnImages(files, logProgressCb) {
   return combinedText;
 }
 
-// Fuzzy match keyword/aliases in OCR text
-function fuzzyMatchText(ocrText, targetName, aliases = []) {
-  const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-  
-  const normOcr = normalize(ocrText);
-  const normTarget = normalize(targetName);
-  const normAliases = aliases.map(a => normalize(a)).filter(Boolean);
-  
-  if (!normTarget) return false;
-  if (normOcr.includes(normTarget)) return true;
-  for (let alias of normAliases) {
-    if (normOcr.includes(alias)) return true;
-  }
-  
-  // Sliding window Levenshtein check
-  const ocrWords = normOcr.split(' ');
-  const targetWords = normTarget.split(' ');
-  const windowSize = targetWords.length;
-  
-  const threshold = Math.max(1, Math.floor(normTarget.length * 0.25));
-  
-  for (let i = 0; i <= ocrWords.length - windowSize; i++) {
-    const windowPhrase = ocrWords.slice(i, i + windowSize).join(' ');
-    if (getEditDistance(windowPhrase, normTarget) <= threshold) {
-      return true;
-    }
-  }
-  
-  for (let alias of normAliases) {
-    const aliasWords = alias.split(' ');
-    const aWindowSize = aliasWords.length;
-    const aThreshold = Math.max(1, Math.floor(alias.length * 0.25));
-    for (let i = 0; i <= ocrWords.length - aWindowSize; i++) {
-      const windowPhrase = ocrWords.slice(i, i + aWindowSize).join(' ');
-      if (getEditDistance(windowPhrase, alias) <= aThreshold) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
+// Main-thread fuzzyMatchText removed. Offloaded to worker.js.
 
 // ----------------------------------------------------
 // 6. Admin Panel Operations
@@ -2479,7 +2378,7 @@ window.deleteReviewFromConsole = async function(reviewId) {
   db.vouches_disputes = db.vouches_disputes.filter(v => v.review_id !== reviewId);
   db.review_tags = db.review_tags.filter(rt => rt.review_id !== reviewId);
 
-  saveDbState();
+  await saveDbState();
   populateAdminInviterDropdown();
   populateAdminManageUserDropdown();
   renderAdminInviteGraph();
@@ -2495,8 +2394,8 @@ window.deleteReviewFromConsole = async function(reviewId) {
     headers: {
       'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify({
-      authKey: sessionStorage.getItem('current_user_key'),
       reviewId: reviewId
     })
   }).then(res => {
@@ -2564,7 +2463,7 @@ window.deleteReviewFromGlobal = async function(reviewId) {
   db.vouches_disputes = db.vouches_disputes.filter(v => v.review_id !== reviewId);
   db.review_tags = db.review_tags.filter(rt => rt.review_id !== reviewId);
 
-  saveDbState();
+  await saveDbState();
   
   // Refresh views
   populateAdminInviterDropdown();
@@ -2584,8 +2483,8 @@ window.deleteReviewFromGlobal = async function(reviewId) {
     headers: {
       'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify({
-      authKey: sessionStorage.getItem('current_user_key'),
       reviewId: reviewId
     })
   }).then(res => {
@@ -2643,7 +2542,7 @@ document.getElementById('btn-admin-revoke-user')?.addEventListener('click', asyn
     p.suspended_until = null;
   });
 
-  saveDbState();
+  await saveDbState();
 
   // Sync to Supabase via CF Worker
 
@@ -2660,8 +2559,7 @@ document.getElementById('btn-admin-revoke-user')?.addEventListener('click', asyn
 
 document.getElementById('btn-admin-create-system-invite')?.addEventListener('click', async () => {
   const rawToken = 'tkn_system_' + Math.random().toString(36).substr(2, 16);
-  const adminKey = sessionStorage.getItem('current_user_key');
-  if (!adminKey) {
+  if (!currentUser) {
     alert('Error: You must be logged in to generate invite tokens.');
     return;
   }
@@ -2670,8 +2568,8 @@ document.getElementById('btn-admin-create-system-invite')?.addEventListener('cli
     const response = await fetch('https://api.inviteonlyreviews.com/api/generate-invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: adminKey,
         rawToken: rawToken,
         inviterUsername: 'root_moderator'
       })
@@ -2697,7 +2595,7 @@ document.getElementById('btn-admin-create-system-invite')?.addEventListener('cli
       rawToken: rawToken
     });
 
-    saveDbState();
+    await saveDbState();
 
     const outputDiv = document.getElementById('admin-invite-token-output');
     if (outputDiv) outputDiv.classList.remove('hidden');
@@ -2723,8 +2621,7 @@ document.getElementById('btn-admin-create-behalf-invite')?.addEventListener('cli
   }
 
   const rawToken = 'tkn_' + Math.random().toString(36).substr(2, 16);
-  const adminKey = sessionStorage.getItem('current_user_key');
-  if (!adminKey) {
+  if (!currentUser) {
     alert('Error: You must be logged in to generate invite tokens.');
     return;
   }
@@ -2733,8 +2630,8 @@ document.getElementById('btn-admin-create-behalf-invite')?.addEventListener('cli
     const response = await fetch('https://api.inviteonlyreviews.com/api/generate-invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: adminKey,
         rawToken: rawToken,
         inviterUsername: profile.username
       })
@@ -2760,7 +2657,7 @@ document.getElementById('btn-admin-create-behalf-invite')?.addEventListener('cli
       rawToken: rawToken
     });
 
-    saveDbState();
+    await saveDbState();
 
     const outputDiv = document.getElementById('admin-invite-token-output');
     if (outputDiv) outputDiv.classList.remove('hidden');
@@ -2779,11 +2676,11 @@ document.getElementById('btn-admin-copy-token')?.addEventListener('click', () =>
   alert(`Invite token copied: ${codeText}`);
 });
 
-document.getElementById('admin-lineage-alpha')?.addEventListener('input', (e) => {
+document.getElementById('admin-lineage-alpha')?.addEventListener('input', async (e) => {
   const val = parseFloat(e.target.value);
   document.getElementById('admin-alpha-value').innerText = val.toFixed(2);
   
-  localStorage.setItem('review_network_settings', JSON.stringify({ lineageAlpha: val }));
+  await window.saveSettings({ lineageAlpha: val });
 
   renderAdminInviteGraph();
   if (selectedAdminProfileId) {
@@ -3248,5 +3145,32 @@ if (uploadInput && previewContainer) {
 }
 
 // Initial boot
-loadDbState();
-checkAuthentication();
+async function initPage() {
+  await loadDbState();
+  await window.loadSettings();
+  await window.loadFollows();
+
+  try {
+    const res = await fetch('https://api.inviteonlyreviews.com/api/auth/verify', {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.profile && data.profile.is_active) {
+        currentUser = data.profile;
+      } else {
+        currentUser = null;
+      }
+    } else {
+      currentUser = null;
+    }
+  } catch (err) {
+    console.error("Session verification failed on startup:", err);
+    currentUser = null;
+  }
+
+  checkAuthentication();
+}
+
+initPage();

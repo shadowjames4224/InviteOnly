@@ -6,6 +6,134 @@
 window.db = undefined;
 window.currentUser = null;
 
+// Initialize background worker for CPU-heavy tasks (shared across all pages)
+const appWorker = new Worker('worker.js');
+let workerCallId = 0;
+const workerPromises = {};
+
+appWorker.onmessage = function(e) {
+  const { id, result, error } = e.data;
+  if (workerPromises[id]) {
+    if (error) {
+      workerPromises[id].reject(new Error(error));
+    } else {
+      workerPromises[id].resolve(result);
+    }
+    delete workerPromises[id];
+  }
+};
+
+window.runWorkerTask = function(type, payload) {
+  return new Promise((resolve, reject) => {
+    const id = ++workerCallId;
+    workerPromises[id] = { resolve, reject };
+    appWorker.postMessage({ id, type, payload });
+  });
+};
+
+// ----------------------------------------------------
+// IndexedDB promise-based wrappers (avoids external dependency bloat)
+// ----------------------------------------------------
+const DB_NAME = 'inviteonly_db';
+const STORE_NAME = 'network_state';
+
+function getIDBStore(mode) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      const transaction = db.transaction(STORE_NAME, mode);
+      const store = transaction.objectStore(STORE_NAME);
+      resolve(store);
+    };
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+window.idbGet = async function(key) {
+  const store = await getIDBStore('readonly');
+  return new Promise((resolve, reject) => {
+    const request = store.get(key);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+window.idbSet = async function(key, value) {
+  const store = await getIDBStore('readwrite');
+  return new Promise((resolve, reject) => {
+    const request = store.put(value, key);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+window.idbRemove = async function(key) {
+  const store = await getIDBStore('readwrite');
+  return new Promise((resolve, reject) => {
+    const request = store.delete(key);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+// ----------------------------------------------------
+// Global Preferences & Follows Cache
+// ----------------------------------------------------
+window.settings = {
+  lineageAlpha: 0.25,
+  revealLowQualityConsent: false
+};
+
+window.loadSettings = async function() {
+  try {
+    const stored = await window.idbGet('review_network_settings');
+    if (stored) {
+      window.settings = { ...window.settings, ...stored };
+    }
+  } catch (e) {
+    console.error("Failed to load settings from IndexedDB:", e);
+  }
+  return window.settings;
+};
+
+window.saveSettings = async function(updated) {
+  window.settings = { ...window.settings, ...updated };
+  try {
+    await window.idbSet('review_network_settings', window.settings);
+  } catch (e) {
+    console.error("Failed to save settings to IndexedDB:", e);
+  }
+};
+
+window.follows = [];
+
+window.loadFollows = async function() {
+  try {
+    const stored = await window.idbGet('review_network_follows');
+    window.follows = stored || [];
+  } catch (e) {
+    console.error("Failed to load follows from IndexedDB:", e);
+    window.follows = [];
+  }
+  return window.follows;
+};
+
+window.saveFollows = async function(follows) {
+  window.follows = follows;
+  try {
+    await window.idbSet('review_network_follows', follows);
+  } catch (e) {
+    console.error("Failed to save follows to IndexedDB:", e);
+  }
+};
+
 // ----------------------------------------------------
 // 1. Security: HTML Sanitization (Prevents XSS Injection)
 // ----------------------------------------------------
@@ -177,27 +305,39 @@ window.getSeedData = function() {
   };
 };
 
-window.loadDb = function() {
-  const storedDb = localStorage.getItem('review_network_db');
-  let parsed = null;
-  if (storedDb) {
-    try {
-      parsed = JSON.parse(storedDb);
-    } catch (e) {
-      parsed = null;
+window.loadDb = async function(force = false) {
+  if (window.db && !force) {
+    // Sync current user references
+    if (window.currentUser) {
+      window.currentUser = window.db.profiles.find(p => p.id === window.currentUser.id && p.is_active);
     }
+    return;
   }
 
-  // Force-wipe check if version is not 2
+  let parsed = null;
+  try {
+    parsed = await window.idbGet('review_network_db');
+  } catch (e) {
+    console.error("IndexedDB read error:", e);
+  }
+
   if (parsed && parsed.version !== 2) {
     parsed = null;
-    localStorage.removeItem('review_network_db');
+    try {
+      await window.idbRemove('review_network_db');
+    } catch (e) {
+      console.error("Failed to remove invalid db version:", e);
+    }
   }
 
   const seed = window.getSeedData();
   if (!parsed || !parsed.profiles || !parsed.nodes || !parsed.invite_tokens || !parsed.reviews || !parsed.vouches_disputes) {
     window.db = seed;
-    localStorage.setItem('review_network_db', JSON.stringify(window.db));
+    try {
+      await window.idbSet('review_network_db', window.db);
+    } catch (e) {
+      console.error("Failed to seed IndexedDB:", e);
+    }
   } else {
     window.db = parsed;
     
@@ -230,27 +370,30 @@ window.loadDb = function() {
     });
 
     if (migrated) {
-      window.saveDbState();
+      await window.saveDbState();
     }
   }
   
   const wasChanged = window.checkSuspensions();
   if (wasChanged) {
-    window.saveDbState();
+    await window.saveDbState();
   }
 
   // Update current user references
-  const userKey = sessionStorage.getItem('current_user_key');
-  if (userKey) {
-    window.currentUser = window.db.profiles.find(p => p.access_key === userKey && p.is_active);
-  } else {
-    window.currentUser = null;
+  if (window.currentUser) {
+    window.currentUser = window.db.profiles.find(p => p.id === window.currentUser.id && p.is_active);
   }
 };
 
-window.saveDbState = function() {
-  localStorage.setItem('review_network_db', JSON.stringify(window.db));
+window.saveDbState = async function() {
+  if (!window.db) return;
+  try {
+    await window.idbSet('review_network_db', window.db);
+  } catch (e) {
+    console.error("IndexedDB write error:", e);
+  }
 };
+
 
 window.checkSuspensions = function() {
   if (!window.db || !window.db.profiles) return false;
@@ -269,9 +412,17 @@ window.checkSuspensions = function() {
 // ----------------------------------------------------
 // 4. Shared API Synchronization and Cloudflare Edge wrappers
 // ----------------------------------------------------
-window.syncLiveReviews = async function() {
+window.syncLiveReviews = async function(limit = null, offset = null) {
   try {
-    const response = await fetch('https://api.inviteonlyreviews.com/api/reviews');
+    let url = 'https://api.inviteonlyreviews.com/api/reviews';
+    const params = [];
+    if (limit !== null) params.push(`limit=${limit}`);
+    if (offset !== null) params.push(`offset=${offset}`);
+    if (params.length > 0) {
+      url += '?' + params.join('&');
+    }
+
+    const response = await fetch(url, { credentials: 'include' });
     if (response.ok) {
       const result = await response.json();
       if (result.success) {
@@ -308,8 +459,12 @@ window.syncLiveReviews = async function() {
               });
             }
           });
-          const liveIds = result.reviews.map(r => r.id);
-          window.db.reviews = window.db.reviews.filter(r => r.id.startsWith('local_') || liveIds.includes(r.id));
+          
+          // Only prune if we fetched a full unpaginated sync
+          if (limit === null && offset === null) {
+            const liveIds = result.reviews.map(r => r.id);
+            window.db.reviews = window.db.reviews.filter(r => r.id.startsWith('local_') || liveIds.includes(r.id));
+          }
         }
 
         // Merge tags
@@ -325,13 +480,25 @@ window.syncLiveReviews = async function() {
               });
             }
           });
-          const liveTagIds = result.tags.map(t => t.id);
-          window.db.tags = window.db.tags.filter(t => liveTagIds.includes(t.id));
+          if (limit === null && offset === null) {
+            const liveTagIds = result.tags.map(t => t.id);
+            window.db.tags = window.db.tags.filter(t => liveTagIds.includes(t.id));
+          }
         }
 
         // Merge review_tags
         if (result.review_tags) {
-          window.db.review_tags = result.review_tags;
+          if (limit === null && offset === null) {
+            window.db.review_tags = result.review_tags;
+          } else {
+            // Append or update tags locally
+            result.review_tags.forEach(rt => {
+              const exists = window.db.review_tags.some(localRt => localRt.review_id === rt.review_id && localRt.tag_id === rt.tag_id);
+              if (!exists) {
+                window.db.review_tags.push(rt);
+              }
+            });
+          }
         }
 
         // Merge nodes
@@ -359,22 +526,37 @@ window.syncLiveReviews = async function() {
               });
             }
           });
-          const liveNodeIds = result.nodes.map(n => n.id);
-          window.db.nodes = window.db.nodes.filter(n => liveNodeIds.includes(n.id));
+          if (limit === null && offset === null) {
+            const liveNodeIds = result.nodes.map(n => n.id);
+            window.db.nodes = window.db.nodes.filter(n => liveNodeIds.includes(n.id));
+          }
         }
 
         // Merge vouches_disputes
         if (result.vouches_disputes) {
-          window.db.vouches_disputes = result.vouches_disputes.map(v => ({
+          const parsedVouches = result.vouches_disputes.map(v => ({
             id: v.id,
             review_id: v.review_id,
             user_id: v.user_id,
             type: v.type,
             allocated_weight: parseFloat(v.allocated_weight)
           }));
+          if (limit === null && offset === null) {
+            window.db.vouches_disputes = parsedVouches;
+          } else {
+            // Merge vouches
+            parsedVouches.forEach(v => {
+              const idx = window.db.vouches_disputes.findIndex(localV => localV.id === v.id);
+              if (idx > -1) {
+                window.db.vouches_disputes[idx] = v;
+              } else {
+                window.db.vouches_disputes.push(v);
+              }
+            });
+          }
         }
 
-        window.saveDbState();
+        await window.saveDbState();
 
         // Dispatch general event for UI updates
         window.dispatchEvent(new Event('dbSyncComplete'));
@@ -390,7 +572,7 @@ window.syncLiveReviews = async function() {
 
 window.syncLiveProfiles = async function() {
   try {
-    const response = await fetch('https://api.inviteonlyreviews.com/api/profiles');
+    const response = await fetch('https://api.inviteonlyreviews.com/api/profiles', { credentials: 'include' });
     if (response.ok) {
       const result = await response.json();
       if (result.success && result.profiles) {
@@ -429,12 +611,11 @@ window.syncLiveProfiles = async function() {
         const liveProfileIds = result.profiles.map(p => p.id);
         window.db.profiles = window.db.profiles.filter(p => liveProfileIds.includes(p.id));
 
-        window.saveDbState();
+        await window.saveDbState();
         
         // Update currentUser reference
-        const userKey = sessionStorage.getItem('current_user_key');
-        if (userKey) {
-          window.currentUser = window.db.profiles.find(p => p.access_key === userKey && p.is_active);
+        if (window.currentUser) {
+          window.currentUser = window.db.profiles.find(p => p.id === window.currentUser.id && p.is_active);
         }
 
         window.dispatchEvent(new Event('dbSyncComplete'));
@@ -448,23 +629,17 @@ window.syncLiveProfiles = async function() {
   }
 };
 
+
 // ----------------------------------------------------
 // 5. Consensus & Lineage Logic
 // ----------------------------------------------------
 window.getLineageAlpha = function() {
-  const settingsStr = localStorage.getItem('review_network_settings');
-  if (settingsStr) {
-    try {
-      const settings = JSON.parse(settingsStr);
-      if (settings && typeof settings.lineageAlpha === 'number') {
-        return settings.lineageAlpha;
-      }
-    } catch (e) {
-      console.warn("Failed to parse settings:", e);
-    }
+  if (window.settings && typeof window.settings.lineageAlpha === 'number') {
+    return window.settings.lineageAlpha;
   }
   return 0.25;
 };
+
 
 window.areInSameInviteLineage = function(userIdA, userIdB) {
   if (userIdA === userIdB) return true;
@@ -592,4 +767,128 @@ window.getNodePathString = function(node) {
     curr = window.db.nodes.find(n => n.id === curr.parent_id);
   }
   return parts.join(' / ');
+};
+
+window.getEditDistance = function(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+};
+
+window.parseCoords = function(coordStr) {
+  if (!coordStr) return null;
+  const decimalRegex = /^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/;
+  const matchDecimal = coordStr.match(decimalRegex);
+  if (matchDecimal) {
+    return {
+      lat: parseFloat(matchDecimal[1]),
+      lon: parseFloat(matchDecimal[2])
+    };
+  }
+
+  const degRegex = /(-?\d+\.\d+)\s*°\s*([NESWnesw])\s*,\s*(-?\d+\.\d+)\s*°\s*([NESWnesw])/;
+  const matchDeg = coordStr.match(degRegex);
+  if (matchDeg) {
+    let lat = parseFloat(matchDeg[1]);
+    const latDir = matchDeg[2].toUpperCase();
+    let lon = parseFloat(matchDeg[3]);
+    const lonDir = matchDeg[4].toUpperCase();
+
+    if (latDir === 'S') lat = -lat;
+    if (lonDir === 'W') lon = -lon;
+    return { lat, lon };
+  }
+  return null;
+};
+
+window.getHaversineDistance = function(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+window.findNormalizedNode = async function(parentId, name) {
+  if (!name) return null;
+  const searchName = name.trim().toLowerCase();
+  
+  // Find children under parentId
+  const siblings = window.db.nodes.filter(n => n.parent_id === parentId);
+  
+  // 1. Exact or case-insensitive match
+  let matched = siblings.find(n => n.name.trim().toLowerCase() === searchName);
+  if (matched) return matched;
+  
+  // 2. Sibling aliases match
+  matched = siblings.find(n => {
+    if (n.aliases && Array.isArray(n.aliases)) {
+      return n.aliases.some(alias => String(alias).trim().toLowerCase() === searchName);
+    }
+    return false;
+  });
+  if (matched) return matched;
+  
+  // 3. Fuzzy Levenshtein match (distance <= 2)
+  for (const n of siblings) {
+    try {
+      const dist = await window.runWorkerTask('getEditDistance', { a: n.name.trim().toLowerCase(), b: searchName });
+      if (dist <= 2) return n;
+    } catch (e) {
+      console.error("Worker error during fuzzy match:", e);
+      // Fallback to sync calculation in case worker fails or is not initialized
+      if (window.getEditDistance(n.name.trim().toLowerCase(), searchName) <= 2) {
+        return n;
+      }
+    }
+  }
+  return null;
+};
+
+
+window.checkSpatialDeduplication = async function(coordsStr) {
+  if (!coordsStr) return null;
+  const userCoords = window.parseCoords(coordsStr);
+  if (!userCoords) return null;
+  
+  // Leaf nodes have node_type !== 'planet', 'country', 'state', 'city', 'category'
+  const nonLeafTypes = ['planet', 'country', 'state', 'city', 'category'];
+  const leafNodes = window.db.nodes.filter(n => !nonLeafTypes.includes(n.node_type) && n.coordinates);
+  
+  for (const node of leafNodes) {
+    const nodeCoords = window.parseCoords(node.coordinates);
+    if (!nodeCoords) continue;
+    
+    const distance = window.getHaversineDistance(userCoords.lat, userCoords.lon, nodeCoords.lat, nodeCoords.lon);
+    if (distance <= 50) {
+      const choice = await window.showConfirm(
+        `A location named "${node.name}" already exists near these coordinates (${Math.round(distance)} meters away). Would you like to attach your review to this existing location instead?`,
+        "Location Already Exists Nearby"
+      );
+      if (choice) {
+        return node.id;
+      }
+    }
+  }
+  return null;
 };

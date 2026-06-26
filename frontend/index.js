@@ -1,54 +1,23 @@
 // index.js - Production Portal Logic
 // Handles tab navigation, forum feed rendering, tag filtering, directory explorer, and user settings
 
+// Background worker for CPU-heavy tasks is initialized in services.js
+
 // db and currentUser are defined globally in services.js
 let activeTagFilter = null;
 let currentDirectoryPath = []; // Array of node objects representing breadcrumb trail
 let selectedUserId = null;
 let uploadedFiles = [];
 
-// Levenshtein Distance for fuzzy matching spelling variations
-function getEditDistance(a, b) {
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-  const matrix = [];
-  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
-        );
-      }
-    }
-  }
-  return matrix[b.length][a.length];
-}
-
-// getSeedData, loadDb, and saveDbState are imported from services.js
-
 function loadFollows() {
-  const stored = localStorage.getItem('review_network_follows');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      return [];
-    }
-  }
-  return [];
+  return window.follows || [];
 }
 
-function saveFollows(follows) {
-  localStorage.setItem('review_network_follows', JSON.stringify(follows));
+async function saveFollows(follows) {
+  await window.saveFollows(follows);
 }
 
-window.toggleFollowUser = function(userId, event) {
+window.toggleFollowUser = async function(userId, event) {
   if (event) event.stopPropagation();
   let follows = loadFollows();
   const idx = follows.indexOf(userId);
@@ -57,7 +26,7 @@ window.toggleFollowUser = function(userId, event) {
   } else {
     follows.push(userId);
   }
-  saveFollows(follows);
+  await saveFollows(follows);
   
   // Re-render active views
   const activeTab = document.querySelector('.nav-tab-btn.active')?.getAttribute('data-tab');
@@ -85,7 +54,6 @@ window.refreshActiveViews = function() {
 // ----------------------------------------------------
 function syncCurrentUser() {
   loadDb();
-  const userKey = sessionStorage.getItem('current_user_key');
   const userDot = document.querySelector('.user-status-dot');
   const userLabel = document.querySelector('.username-display');
   const guestGate = document.getElementById('submit-guest-gate');
@@ -93,13 +61,6 @@ function syncCurrentUser() {
   const settingsInfo = document.getElementById('settings-user-info');
   const settingsGroup = document.getElementById('settings-user-group');
   const submitRep = document.getElementById('submit-reputation-badge');
-
-  // Determine current user and update admin-only elements visibility
-  if (userKey) {
-    currentUser = db.profiles.find(p => p.access_key === userKey && p.is_active);
-  } else {
-    currentUser = null;
-  }
 
   const adminElements = document.querySelectorAll('.admin-only');
   const isAdmin = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
@@ -111,12 +72,13 @@ function syncCurrentUser() {
     }
   });
 
-  if (userKey && currentUser) {
+  if (currentUser) {
     // Offline safeguard check (deactivated in sandbox)
     if (!currentUser.is_active) {
-        sessionStorage.removeItem('current_user_key');
-        currentUser = null;
-        syncCurrentUser();
+        fetch('https://api.inviteonlyreviews.com/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => {
+          currentUser = null;
+          syncCurrentUser();
+        });
         return;
       }
 
@@ -146,13 +108,15 @@ function syncCurrentUser() {
             <div><strong>Invite Lineage Parent:</strong> ${currentUser.invited_by ? '@' + (db.profiles.find(p => p.id === currentUser.invited_by)?.username || 'Unknown') : 'System Level'}</div>
             <div style="margin-top:0.5rem; padding:0.75rem; background:rgba(255,255,255,0.03); border:1px dashed var(--border-color); border-radius:var(--radius-sm);">
               <label style="font-size:0.7rem; color:#71717a; text-transform:uppercase;">Private Access Key Credentials</label>
-              <code style="display:block; font-family:var(--font-mono); color:var(--color-primary); word-break:break-all; font-size:0.85rem; margin-top:0.25rem;">${currentUser.access_key}</code>
+              <code style="display:block; font-family:var(--font-mono); color:var(--color-primary); word-break:break-all; font-size:0.85rem; margin-top:0.25rem;">[Protected HttpOnly Session]</code>
             </div>
             <button class="btn btn-secondary" id="btn-settings-logout" style="margin-top:0.5rem;">Sign Out from Device</button>
           </div>
         `;
-        document.getElementById('btn-settings-logout').addEventListener('click', () => {
-          sessionStorage.removeItem('current_user_key');
+        document.getElementById('btn-settings-logout').addEventListener('click', async () => {
+          try {
+            await fetch('https://api.inviteonlyreviews.com/api/auth/logout', { method: 'POST', credentials: 'include' });
+          } catch(e) {}
           location.reload();
         });
 
@@ -176,14 +140,13 @@ function syncCurrentUser() {
             if (changeNameError) changeNameError.classList.add('hidden');
 
             try {
-              const oldKey = sessionStorage.getItem('current_user_key');
               const res = await fetch('https://api.inviteonlyreviews.com/api/profile/update-username', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
-                  authKey: oldKey,
                   newUsername: newUsername
                 })
               });
@@ -199,33 +162,18 @@ function syncCurrentUser() {
                 return;
               }
 
-              // Access key update logic
-              let suffix = '';
-              if (oldKey === 'key_root_moderator') {
-                suffix = 'moderator';
-              } else {
-                const lastUnderscore = oldKey.lastIndexOf('_');
-                if (lastUnderscore > 4) {
-                  suffix = oldKey.substring(lastUnderscore + 1);
-                }
-              }
-
-              const newKey = suffix ? `key_${newUsername}_${suffix}` : `key_${newUsername}`;
-
               // Update local DB profile
               const profile = db.profiles.find(p => p.id === currentUser.id);
               if (profile) {
                 profile.username = newUsername;
-                profile.access_key = newKey;
               }
 
-              saveDbState();
-              sessionStorage.setItem('current_user_key', newKey);
+              await saveDbState();
               currentUser = profile;
 
               changeNameInput.value = '';
 
-              prompt(`✓ Username updated successfully!\n\nPlease copy and save this key to log in next time.\n\nYour new Access Key is:`, newKey);
+              alert(`✓ Username updated successfully to @${newUsername}!`);
               location.reload();
             } catch (err) {
               console.error(err);
@@ -258,8 +206,8 @@ function syncCurrentUser() {
                   const res = await fetch('https://api.inviteonlyreviews.com/api/profile/update-demographic', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
-                      authKey: sessionStorage.getItem('current_user_key'),
                       demographicGroup: newGroup
                     })
                   });
@@ -380,7 +328,32 @@ function initTabNavigation() {
 // ----------------------------------------------------
 // 4. Forum Feed Rendering & Search
 // ----------------------------------------------------
-function renderFeedReviews() {
+let feedLimit = 10;
+let feedOffset = 0;
+let feedHasMore = true;
+let isFetchingFeed = false;
+let feedObserver = null;
+
+function setupFeedSentinelObserver(sentinel) {
+  if (feedObserver) {
+    feedObserver.disconnect();
+  }
+  feedObserver = new IntersectionObserver(async (entries) => {
+    if (entries[0].isIntersecting && feedHasMore && !isFetchingFeed) {
+      isFetchingFeed = true;
+      try {
+        await syncLiveReviews(feedLimit, feedOffset);
+      } catch (e) {
+        console.error("Scroll sync failed:", e);
+      }
+      isFetchingFeed = false;
+      renderFeedReviews(true);
+    }
+  }, { rootMargin: '150px' });
+  feedObserver.observe(sentinel);
+}
+
+function renderFeedReviews(append = false) {
   const searchInput = document.getElementById('feed-search-input');
   const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
   const sortSelect = document.getElementById('feed-sort-select');
@@ -390,10 +363,19 @@ function renderFeedReviews() {
   const settingsRevealConsent = document.getElementById('chk-settings-reveal-low')?.checked || false;
 
   if (!feedList) return;
-  feedList.innerHTML = '';
 
-  // 1. Populate popular tags filter bar
-  if (popularTagsWrapper) {
+  if (!append) {
+    feedOffset = 0;
+    feedHasMore = true;
+    feedList.innerHTML = '';
+    if (feedObserver) {
+      feedObserver.disconnect();
+      feedObserver = null;
+    }
+  }
+
+  // 1. Populate popular tags filter bar (only on full load, not on append)
+  if (!append && popularTagsWrapper) {
     popularTagsWrapper.innerHTML = '';
     
     // Add "All" chip
@@ -403,7 +385,7 @@ function renderFeedReviews() {
     allChip.addEventListener('click', () => {
       activeTagFilter = null;
       document.getElementById('active-tag-indicator').classList.add('hidden');
-      renderFeedReviews();
+      renderFeedReviews(false);
     });
     popularTagsWrapper.appendChild(allChip);
 
@@ -419,7 +401,7 @@ function renderFeedReviews() {
           tagNameEl.innerText = '#' + tag.name;
           indicator.classList.remove('hidden');
         }
-        renderFeedReviews();
+        renderFeedReviews(false);
       });
       popularTagsWrapper.appendChild(chip);
     });
@@ -456,7 +438,7 @@ function renderFeedReviews() {
   }
 
   // 3. Sort reviews
-  if (sortBy === 'newest') {
+  if (sortBy === 'newest' || sortBy === 'latest') {
     reviews.sort((a, b) => b.created_at - a.created_at);
   } else if (sortBy === 'consensus') {
     reviews.sort((a, b) => b.consensus.theta - a.consensus.theta);
@@ -478,17 +460,56 @@ function renderFeedReviews() {
     return;
   }
 
-  // 4. Render
+  // Remove existing sentinel if any before rendering new page
+  const oldSentinel = document.getElementById('feed-sentinel');
+  if (oldSentinel) {
+    oldSentinel.remove();
+  }
+
+  // Slice for pagination
+  const pageReviews = reviews.slice(feedOffset, feedOffset + feedLimit);
+  
+  if (pageReviews.length === 0 && !append) {
+    feedList.innerHTML = `
+      <div class="empty-feed-placeholder">
+        <p>No reviews found matching filters.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 4. Render page reviews
   const fragment = document.createDocumentFragment();
-  reviews.forEach(r => {
+  pageReviews.forEach(r => {
     renderReviewCard(r, fragment, settingsRevealConsent);
   });
   feedList.appendChild(fragment);
+
+  // Update offset
+  feedOffset += pageReviews.length;
+  if (reviews.length <= feedOffset) {
+    feedHasMore = false;
+  }
+
+  // Append new sentinel if more reviews remain
+  if (feedHasMore) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'feed-sentinel';
+    sentinel.style.height = '40px';
+    sentinel.style.display = 'flex';
+    sentinel.style.justifyContent = 'center';
+    sentinel.style.alignItems = 'center';
+    sentinel.innerHTML = '<span style="color:#71717a; font-size:0.8rem; font-family:var(--font-sans);">Loading more reviews...</span>';
+    feedList.appendChild(sentinel);
+    
+    setupFeedSentinelObserver(sentinel);
+  }
 }
 
 function renderReviewCard(r, parentContainer, settingsRevealConsent) {
   const cardContainer = document.createElement('div');
   cardContainer.className = 'review-card-container';
+  cardContainer.setAttribute('data-review-id', r.id);
   cardContainer.style.marginBottom = '1.25rem';
 
   // Target parent directory categories
@@ -893,6 +914,94 @@ window.setFeedTagFilter = function(tagId, tagName) {
   renderFeedReviews();
 };
 
+window.updateReviewCardUI = function(reviewId) {
+  const cardContainer = document.querySelector(`[data-review-id="${reviewId}"]`);
+  if (!cardContainer) return;
+
+  const consensus = calculateReviewConsensus(reviewId);
+  const settingsRevealConsent = document.getElementById('chk-settings-reveal-low')?.checked || false;
+
+  // 1. Update Vouch and Dispute weights
+  const summaryEl = cardContainer.querySelector('.post-votes-summary');
+  if (summaryEl) {
+    const strongs = summaryEl.querySelectorAll('strong');
+    if (strongs.length >= 2) {
+      strongs[0].innerText = consensus.vouches.toFixed(1);
+      strongs[1].innerText = consensus.disputes.toFixed(1);
+    }
+  }
+
+  // 2. Update button classes
+  const hasVotedVouch = currentUser ? db.vouches_disputes.some(v => v.review_id === reviewId && v.user_id === currentUser.id && v.type === 'vouch') : false;
+  const hasVotedDispute = currentUser ? db.vouches_disputes.some(v => v.review_id === reviewId && v.user_id === currentUser.id && v.type === 'dispute') : false;
+
+  const vouchBtn = cardContainer.querySelector('.post-vote-actions button:first-child');
+  const disputeBtn = cardContainer.querySelector('.post-vote-actions button:last-child');
+  if (vouchBtn) vouchBtn.className = hasVotedVouch ? 'vote-btn vouch-active' : 'vote-btn';
+  if (disputeBtn) disputeBtn.className = hasVotedDispute ? 'vote-btn dispute-active' : 'vote-btn';
+
+  // 3. Update warning banner and blur overlay
+  const cardEl = cardContainer.querySelector('.review-card');
+  if (cardEl) {
+    // Remove existing warning banners
+    const existingBanner = cardEl.querySelector('.review-warning-banner');
+    if (existingBanner) existingBanner.remove();
+
+    const thetaPct = Math.round(consensus.theta * 100);
+    cardEl.classList.remove('disputed-mid', 'disputed-heavy');
+
+    let warningBannerHtml = '';
+    let cardClassAdd = '';
+    if (consensus.theta >= 0.40 && consensus.theta < 0.70) {
+      cardClassAdd = 'disputed-mid';
+      warningBannerHtml = `<div class="review-warning-banner yellow">⚠️ Contested Feedback: Community consensus is split (${thetaPct}% approve)</div>`;
+    } else if (consensus.theta < 0.40) {
+      cardClassAdd = 'disputed-heavy';
+      warningBannerHtml = `<div class="review-warning-banner red">🛑 LOW CONSENSUS: This review has failed community guidelines (${thetaPct}% approve)</div>`;
+    }
+
+    if (cardClassAdd) cardEl.classList.add(cardClassAdd);
+    if (warningBannerHtml) {
+      cardEl.insertAdjacentHTML('afterbegin', warningBannerHtml);
+    }
+
+    const isContested = consensus.theta < 0.40;
+    const isCollapsed = isContested && !settingsRevealConsent;
+
+    // Handle blur and reveal overlay
+    const existingOverlay = cardContainer.querySelector('.reveal-overlay');
+    if (isCollapsed) {
+      cardEl.style.filter = 'blur(4px)';
+      cardEl.style.pointerEvents = 'none';
+      cardEl.style.opacity = '0.2';
+
+      if (!existingOverlay) {
+        const overlay = document.createElement('div');
+        overlay.className = 'reveal-overlay';
+        overlay.innerHTML = `
+          <span style="font-size: 1.5rem; margin-bottom: 0.25rem;">🛑</span>
+          <strong style="color: #f43f5e; font-size: 0.85rem;">Review Contested (Guidelines failed)</strong>
+          <p style="font-size: 0.72rem; color: #a1a1aa; margin: 0.25rem 1rem; text-align: center;">This post has low community consensus. Click to reveal.</p>
+        `;
+        overlay.addEventListener('click', () => {
+          overlay.style.display = 'none';
+          cardEl.style.filter = 'none';
+          cardEl.style.opacity = '1';
+          cardEl.style.pointerEvents = 'auto';
+        });
+        cardContainer.appendChild(overlay);
+      } else {
+        existingOverlay.style.display = 'flex';
+      }
+    } else {
+      cardEl.style.filter = 'none';
+      cardEl.style.pointerEvents = 'auto';
+      cardEl.style.opacity = '1';
+      if (existingOverlay) existingOverlay.remove();
+    }
+  }
+};
+
 window.castFeedVote = function(reviewId, type) {
   loadDb();
   if (!currentUser) {
@@ -938,13 +1047,17 @@ window.castFeedVote = function(reviewId, type) {
   // Re-run reputation contagion calculations
   runLineageReputationDecay();
 
-  // Sync UI — update whichever tab is currently visible
+  // Sync UI — update in-place if visible to prevent page redraw/flicker
   const activeTab = document.querySelector('.nav-tab-btn.active')?.getAttribute('data-tab');
-  if (activeTab === 'feed-view') renderFeedReviews();
-  else if (activeTab === 'following-view') renderFollowingFeed();
-  else if (activeTab === 'browse-view') renderDirectoryExplorer();
-  else if (activeTab === 'users-view' && selectedUserId) renderSelectedUserDetails(selectedUserId);
-  else renderFeedReviews(); // fallback
+  if (activeTab === 'feed-view' || activeTab === 'following-view') {
+    window.updateReviewCardUI(reviewId);
+  } else if (activeTab === 'browse-view') {
+    renderDirectoryExplorer();
+  } else if (activeTab === 'users-view' && selectedUserId) {
+    renderSelectedUserDetails(selectedUserId);
+  } else {
+    window.updateReviewCardUI(reviewId);
+  }
 
   // Sync vouch to database in background
   fetch('https://api.inviteonlyreviews.com/api/vouch', {
@@ -952,8 +1065,8 @@ window.castFeedVote = function(reviewId, type) {
     headers: {
       'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify({
-      authKey: sessionStorage.getItem('current_user_key'),
       reviewId: reviewId,
       type: type,
       allocatedWeight: allocatedWeight
@@ -962,6 +1075,7 @@ window.castFeedVote = function(reviewId, type) {
     console.error("Failed to sync vouch:", err);
   });
 };
+
 
 window.deleteReviewFromFeed = async function(reviewId) {
   if (!await showConfirm("Are you sure you want to permanently delete this review from the network?", "Delete Review")) {
@@ -990,8 +1104,8 @@ window.deleteReviewFromFeed = async function(reviewId) {
     headers: {
       'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify({
-      authKey: sessionStorage.getItem('current_user_key'),
       reviewId: reviewId
     })
   }).then(res => {
@@ -1446,45 +1560,7 @@ function initAddressAutocomplete() {
   });
 }
 
-// Coordinate parsing helper
-function parseCoords(coordStr) {
-  if (!coordStr) return null;
-  const decimalRegex = /^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/;
-  const matchDecimal = coordStr.match(decimalRegex);
-  if (matchDecimal) {
-    return {
-      lat: parseFloat(matchDecimal[1]),
-      lon: parseFloat(matchDecimal[2])
-    };
-  }
-
-  const degRegex = /(-?\d+\.\d+)\s*°\s*([NESWnesw])\s*,\s*(-?\d+\.\d+)\s*°\s*([NESWnesw])/;
-  const matchDeg = coordStr.match(degRegex);
-  if (matchDeg) {
-    let lat = parseFloat(matchDeg[1]);
-    const latDir = matchDeg[2].toUpperCase();
-    let lon = parseFloat(matchDeg[3]);
-    const lonDir = matchDeg[4].toUpperCase();
-
-    if (latDir === 'S') lat = -lat;
-    if (lonDir === 'W') lon = -lon;
-    return { lat, lon };
-  }
-  return null;
-}
-
-// Haversine distance formula (in meters)
-function getHaversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+// parseCoords and getHaversineDistance are loaded from services.js
 
 // Extract GPS coords from EXIF using exifr library
 async function extractGpsFromImages(files) {
@@ -1534,47 +1610,7 @@ async function performOcrOnImages(files, logProgressCb) {
   return combinedText;
 }
 
-// Fuzzy match keyword/aliases in OCR text
-function fuzzyMatchText(ocrText, targetName, aliases = []) {
-  const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-  
-  const normOcr = normalize(ocrText);
-  const normTarget = normalize(targetName);
-  const normAliases = aliases.map(a => normalize(a)).filter(Boolean);
-  
-  if (!normTarget) return false;
-  if (normOcr.includes(normTarget)) return true;
-  for (let alias of normAliases) {
-    if (normOcr.includes(alias)) return true;
-  }
-  
-  // Sliding window Levenshtein check
-  const ocrWords = normOcr.split(' ');
-  const targetWords = normTarget.split(' ');
-  const windowSize = targetWords.length;
-  
-  const threshold = Math.max(1, Math.floor(normTarget.length * 0.25));
-  
-  for (let i = 0; i <= ocrWords.length - windowSize; i++) {
-    const windowPhrase = ocrWords.slice(i, i + windowSize).join(' ');
-    if (getEditDistance(windowPhrase, normTarget) <= threshold) {
-      return true;
-    }
-  }
-  
-  for (let alias of normAliases) {
-    const aliasWords = alias.split(' ');
-    const aWindowSize = aliasWords.length;
-    const aThreshold = Math.max(1, Math.floor(alias.length * 0.25));
-    for (let i = 0; i <= ocrWords.length - aWindowSize; i++) {
-      const windowPhrase = ocrWords.slice(i, i + aWindowSize).join(' ');
-      if (getEditDistance(windowPhrase, alias) <= aThreshold) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
+// Main-thread fuzzyMatchText removed. Offloaded to worker.js.
 
 // ----------------------------------------------------
 // 8. Review Submission & Tag Pipeline
@@ -1690,14 +1726,14 @@ function initReviewSubmission() {
   // Submission handler
   const btnSubmit = document.getElementById('btn-portal-submit-review');
   if (btnSubmit) {
-    btnSubmit.addEventListener('click', () => {
+    btnSubmit.addEventListener('click', async () => {
       loadDb();
       if (!currentUser) {
         alert("Authentication Error: You must be logged in to post reviews.");
         return;
       }
 
-      const isNewMode = newRadio.checked;
+      let isNewMode = newRadio.checked;
       const content = document.getElementById('portal-review-text').value.trim();
       const tagsInputVal = document.getElementById('portal-review-tags').value.trim();
       const attachGps = gpsCheckbox.checked;
@@ -1735,28 +1771,81 @@ function initReviewSubmission() {
           return;
         }
 
-        // Generate taxonomy nodes recursively
-        const pathSegments = newPath.split('/').map(s => s.trim()).filter(Boolean);
-        let currentParent = parentId;
+        // Intercept leaf node creation if coordinates already exist nearby
+        if (coords) {
+          const existingNodeId = await window.checkSpatialDeduplication(coords);
+          if (existingNodeId) {
+            targetNodeId = existingNodeId;
+            isNewMode = false;
+          }
+        }
 
-        pathSegments.forEach((segment, idx) => {
-          const slug = segment.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 50);
-          const isLeaf = idx === pathSegments.length - 1;
-
-          const newNodePayload = {
-            name: segment,
-            slug: slug,
-            node_type: isLeaf ? leafNodeType : 'category',
-            aliases: isLeaf ? aliasesList : []
+        if (isNewMode) {
+          // Generate taxonomy nodes recursively
+          const pathSegments = newPath.split('/').map(s => s.trim()).filter(Boolean);
+          let currentParentId = parentId;
+          
+          // Helper to generate slug
+          const toSlug = (str) => {
+            return str.toLowerCase()
+                      .replace(/[^a-z0-9_]+/g, '_')
+                      .replace(/^_+|_+$/g, '');
           };
 
-          if (isLeaf) {
-            if (address) newNodePayload.address = address;
-            if (coords) newNodePayload.coordinates = coords;
-          }
+          for (let i = 0; i < pathSegments.length; i++) {
+            const name = pathSegments[i];
+            const slug = toSlug(name);
+            if (!slug) {
+              alert(`Invalid name component: "${name}"`);
+              return;
+            }
 
-          newNodesList.push(newNodePayload);
-        });
+            // Check if node exists under currentParentId using findNormalizedNode
+            let existingNode = window.findNormalizedNode(currentParentId, name);
+            const isLeaf = (i === pathSegments.length - 1);
+
+            if (existingNode) {
+              currentParentId = existingNode.id;
+              if (isLeaf) {
+                if (address) existingNode.address = address;
+                if (coords) existingNode.coordinates = coords;
+                if (aliasesList.length > 0) {
+                  if (!existingNode.aliases) existingNode.aliases = [];
+                  aliasesList.forEach(a => {
+                    if (!existingNode.aliases.includes(a)) {
+                      existingNode.aliases.push(a);
+                    }
+                  });
+                }
+              }
+            } else {
+              // Create new node
+              const nextId = Math.floor(Math.random() * 100000000) + 1000000;
+              const parentNode = db.nodes.find(n => n.id === currentParentId);
+              const parentPath = parentNode ? parentNode.path : '';
+              const nodePathString = parentPath ? `${parentPath}.${nextId}` : `${nextId}`;
+
+              const type = isLeaf ? leafNodeType : 'category';
+
+              const newNode = {
+                id: nextId,
+                parent_id: currentParentId,
+                name: name,
+                slug: slug,
+                node_type: type,
+                path: nodePathString,
+                address: isLeaf && address ? address : null,
+                coordinates: isLeaf && coords ? coords : null,
+                aliases: isLeaf ? aliasesList : []
+              };
+
+              db.nodes.push(newNode);
+              newNodesList.push(newNode);
+              currentParentId = nextId;
+            }
+          }
+          targetNodeId = currentParentId;
+        }
       }
 
       // 2. Perform PoE Logs pipeline
@@ -1792,9 +1881,9 @@ function initReviewSubmission() {
                 targetCoordsStr = node ? (node.coordinates || "") : "";
               }
               
-              const targetCoords = parseCoords(targetCoordsStr);
+              const targetCoords = window.parseCoords(targetCoordsStr);
               if (targetCoords) {
-                const distance = getHaversineDistance(gpsCoords.latitude, gpsCoords.longitude, targetCoords.lat, targetCoords.lon);
+                const distance = window.getHaversineDistance(gpsCoords.latitude, gpsCoords.longitude, targetCoords.lat, targetCoords.lon);
                 log(`Edge-Worker: Proximity check - Distance to target is ${distance.toFixed(1)} meters.`, "info");
                 if (distance <= 100) {
                   log(`Edge-Worker: Found EXIF GPS. Proximity matches target. (Distance ${distance.toFixed(1)}m)`, "success");
@@ -1842,7 +1931,11 @@ function initReviewSubmission() {
                 targetAliases = node ? (node.aliases || []) : [];
               }
               
-              const isOcrMatch = fuzzyMatchText(ocrText, targetName, targetAliases);
+              const isOcrMatch = await window.runWorkerTask('fuzzyMatchText', {
+                ocrText,
+                targetName,
+                aliases: targetAliases
+              });
               if (isOcrMatch) {
                 log(`Serverless Worker: Keyword Match parsed successfully on invoice for "${targetName}".`, "success");
                 ocrSuccess = true;
@@ -1875,7 +1968,7 @@ function initReviewSubmission() {
         
         const newReview = {
           id: newReviewId,
-          node_id: isNewMode ? null : targetNodeId,
+          node_id: targetNodeId,
           author_id: currentUser.id,
           raw_content: content,
           is_verified_experience: isVerified,
@@ -1912,8 +2005,8 @@ function initReviewSubmission() {
           headers: {
             'Content-Type': 'application/json'
           },
+          credentials: 'include',
           body: JSON.stringify({
-            authKey: sessionStorage.getItem('current_user_key'),
             review: newReview,
             newNodes: newNodesList,
             parentNodeId: isNewMode ? parentIdSelect.value : null,
@@ -1988,12 +2081,12 @@ function initPreferences() {
   const chkRevealConsent = document.getElementById('chk-settings-reveal-low');
   
   if (chkRevealConsent) {
-    // Load from localStorage
-    const consent = localStorage.getItem('reveal_low_quality_consent') === 'true';
+    // Load from window.settings (already populated from IndexedDB)
+    const consent = window.settings ? window.settings.revealLowQualityConsent === true : false;
     chkRevealConsent.checked = consent;
 
-    chkRevealConsent.addEventListener('change', (e) => {
-      localStorage.setItem('reveal_low_quality_consent', e.target.checked ? 'true' : 'false');
+    chkRevealConsent.addEventListener('change', async (e) => {
+      await window.saveSettings({ revealLowQualityConsent: e.target.checked });
       // Instantly trigger re-render of feed reviews to update filters!
       renderFeedReviews();
     });
@@ -2003,13 +2096,12 @@ function initPreferences() {
 window.deleteNodeFromDirectory = async function(nodeId) {
   // NOTE: The Edge Worker / Backend must independently verify the authKey and check for
   // key_root_moderator or moderator role prior to execution. Do not rely solely on frontend client checks.
-  if (!await showConfirm("Are you sure you want to permanently delete this directory space, including all sub-spaces and reviews?", "Delete Directory Space")) {
+  if (!currentUser) {
+    alert("Error: You must be logged in to perform this operation.");
     return;
   }
 
-  const userKey = sessionStorage.getItem('current_user_key');
-  if (!userKey) {
-    alert("Error: You must be logged in to perform this operation.");
+  if (!await showConfirm("Are you sure you want to permanently delete this directory space, including all sub-spaces and reviews?", "Delete Directory Space")) {
     return;
   }
 
@@ -2017,8 +2109,8 @@ window.deleteNodeFromDirectory = async function(nodeId) {
     const response = await fetch('https://api.inviteonlyreviews.com/api/nodes', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: userKey,
         nodeId: nodeId
       })
     });
@@ -2083,8 +2175,7 @@ window.mergeNodeInDirectory = async function(nodeId) {
     return;
   }
 
-  const userKey = sessionStorage.getItem('current_user_key');
-  if (!userKey) {
+  if (!currentUser) {
     alert("Error: You must be logged in to perform this operation.");
     return;
   }
@@ -2093,12 +2184,43 @@ window.mergeNodeInDirectory = async function(nodeId) {
     return;
   }
 
+  // Perform local database migration before sending payload to the server
+  const sourceNode = db.nodes.find(n => n.id === nodeId);
+  const targetNode = db.nodes.find(n => n.id === targetId);
+  if (sourceNode && targetNode) {
+    db.reviews.forEach(r => {
+      if (r.node_id === nodeId) {
+        r.node_id = targetId;
+      }
+    });
+    db.nodes.forEach(n => {
+      if (n.parent_id === nodeId) {
+        n.parent_id = targetId;
+      }
+    });
+    if (!targetNode.aliases) {
+      targetNode.aliases = [];
+    }
+    if (!targetNode.aliases.includes(sourceNode.name.toLowerCase())) {
+      targetNode.aliases.push(sourceNode.name.toLowerCase());
+    }
+    if (sourceNode.aliases && Array.isArray(sourceNode.aliases)) {
+      sourceNode.aliases.forEach(a => {
+        if (!targetNode.aliases.includes(a.toLowerCase())) {
+          targetNode.aliases.push(a.toLowerCase());
+        }
+      });
+    }
+    db.nodes = db.nodes.filter(n => n.id !== nodeId);
+    saveDbState();
+  }
+
   try {
     const response = await fetch('https://api.inviteonlyreviews.com/api/admin/merge-nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        authKey: userKey,
         sourceNodeId: nodeId,
         targetNodeId: targetId
       })
@@ -2111,13 +2233,7 @@ window.mergeNodeInDirectory = async function(nodeId) {
 
     alert("Directory spaces successfully merged on the ledger!");
 
-    // Clear local storage / trigger complete sync to pull down updated paths and relationships
-    localStorage.removeItem('review_network_db');
-    loadDb();
-    await syncLiveReviews();
-    await syncLiveProfiles();
-    
-    // Reset path back to root since structure changed
+    // Reset path back to root since structure changed and re-render
     currentDirectoryPath = [];
     renderDirectoryExplorer();
 
@@ -2129,11 +2245,29 @@ window.mergeNodeInDirectory = async function(nodeId) {
 // ----------------------------------------------------
 // 10. Initialization & Listeners Setup
 // ----------------------------------------------------
-document.addEventListener('DOMContentLoaded', () => {
-  loadDb();
-  const sessionKey = sessionStorage.getItem('current_user_key');
-  const userExists = sessionKey ? db.profiles.find(p => p.access_key === sessionKey && p.is_active) : null;
-  if (!sessionKey || !userExists) {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadDb();
+  await window.loadSettings();
+  await window.loadFollows();
+
+  let verified = false;
+  try {
+    const res = await fetch('https://api.inviteonlyreviews.com/api/auth/verify', {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.profile && data.profile.is_active) {
+        window.currentUser = data.profile;
+        verified = true;
+      }
+    }
+  } catch (err) {
+    console.error("Session verification failed:", err);
+  }
+
+  if (!verified) {
     window.location.href = 'profile.html';
     return;
   }
@@ -2185,9 +2319,11 @@ document.addEventListener('DOMContentLoaded', () => {
   renderFeedReviews();
 
   // Multi-tab ledger state synchronization listener
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'review_network_db') {
-      loadDb();
+  window.addEventListener('storage', async (e) => {
+    if (e.key === 'review_network_db' || e.key === 'review_network_settings' || e.key === 'review_network_follows') {
+      await loadDb(true);
+      await window.loadSettings();
+      await window.loadFollows();
       syncCurrentUser();
       
       // Update UI feeds

@@ -3,10 +3,12 @@ export default {
     const url = new URL(request.url);
 
     // CORS Headers to allow requests from your frontend portal
+    const origin = request.headers.get('Origin') || '*';
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
     };
 
     if (request.method === 'OPTIONS') {
@@ -90,9 +92,15 @@ export default {
           }
         }
 
+        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
+        const cookieVal = `current_user_key=${password}; HttpOnly; SameSite=Strict; Path=/${secureFlag}`;
         return new Response(JSON.stringify({ success: true, profile: fullProfile }), {
           status: 201,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: new Headers({
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Set-Cookie': cookieVal
+          })
         });
       }
 
@@ -145,7 +153,8 @@ export default {
 
       // Route 3: Generate Invite Token Endpoint
       if (url.pathname === '/api/generate-invite' && request.method === 'POST') {
-        const { authKey, rawToken, inviterUsername } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { rawToken, inviterUsername } = await request.json();
         if (!authKey || !rawToken) {
           return new Response(JSON.stringify({ error: 'Missing parameters: authKey and rawToken are required.' }), {
             status: 400,
@@ -345,7 +354,8 @@ export default {
 
       // Route 5: Admin Manage Profile Endpoint (Updates or Deletes profiles on Supabase)
       if (url.pathname === '/api/admin/manage-profile' && request.method === 'POST') {
-        const { authKey, action, updates, targetId, profile: newProfileData } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { action, updates, targetId, profile: newProfileData } = await request.json();
         if (!authKey || !action) {
           return new Response(JSON.stringify({ error: 'Missing parameters: authKey and action are required.' }), {
             status: 400,
@@ -647,7 +657,8 @@ export default {
 
       // Route 7: POST /api/reviews
       if (url.pathname === '/api/reviews' && request.method === 'POST') {
-        const { authKey, review, newNodes, parentNodeId, tags } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { review, newNodes, parentNodeId, tags } = await request.json();
         if (!authKey || !review) {
           return new Response(JSON.stringify({ error: 'Missing review parameters.' }), {
             status: 400,
@@ -788,7 +799,8 @@ export default {
 
       // Route 8: DELETE /api/reviews
       if (url.pathname === '/api/reviews' && request.method === 'DELETE') {
-        const { authKey, reviewId } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { reviewId } = await request.json();
         if (!authKey || !reviewId) {
           return new Response(JSON.stringify({ error: 'Missing review deletion parameters.' }), {
             status: 400,
@@ -842,7 +854,8 @@ export default {
 
       // Route 8b: DELETE /api/nodes
       if (url.pathname === '/api/nodes' && request.method === 'DELETE') {
-        const { authKey, nodeId } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { nodeId } = await request.json();
         if (!authKey || !nodeId) {
           return new Response(JSON.stringify({ error: 'Missing space deletion parameters.' }), {
             status: 400,
@@ -896,7 +909,8 @@ export default {
 
       // Route 8c: POST /api/admin/merge-nodes
       if (url.pathname === '/api/admin/merge-nodes' && request.method === 'POST') {
-        const { authKey, sourceNodeId, targetNodeId } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { sourceNodeId, targetNodeId } = await request.json();
         if (!authKey || !sourceNodeId || !targetNodeId) {
           return new Response(JSON.stringify({ error: 'Missing parameters: authKey, sourceNodeId, and targetNodeId are required.' }), {
             status: 400,
@@ -961,7 +975,8 @@ export default {
 
       // Route 8d: POST /api/admin/release-user
       if (url.pathname === '/api/admin/release-user' && request.method === 'POST') {
-        const { authKey, targetId } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { targetId } = await request.json();
         if (!authKey || !targetId) {
           return new Response(JSON.stringify({ error: 'Missing parameters: authKey and targetId are required.' }), {
             status: 400,
@@ -1048,7 +1063,8 @@ export default {
 
       // Route 9: POST /api/vouch
       if (url.pathname === '/api/vouch' && request.method === 'POST') {
-        const { authKey, reviewId, type } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { reviewId, type } = await request.json();
         if (!authKey || !reviewId || !type) {
           return new Response(JSON.stringify({ error: 'Missing vouch/dispute parameters.' }), {
             status: 400,
@@ -1147,7 +1163,8 @@ export default {
 
       // Route 10: POST /api/profile/update-username
       if (url.pathname === '/api/profile/update-username' && request.method === 'POST') {
-        const { authKey, newUsername } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { newUsername } = await request.json();
         if (!authKey || !newUsername) {
           return new Response(JSON.stringify({ error: 'Missing update-username parameters.' }), {
             status: 400,
@@ -1226,7 +1243,8 @@ export default {
 
       // New Route: POST /api/profile/update-key
       if (url.pathname === '/api/profile/update-key' && request.method === 'POST') {
-        const { authKey, newKey } = await request.json();
+        const authKey = await getAuthKey(request);
+        const { newKey } = await request.json();
         if (!authKey || !newKey) {
            return new Response(JSON.stringify({ error: 'Missing key update data.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
         }
@@ -1247,15 +1265,21 @@ export default {
         
         if (!patchRes.ok) return new Response(JSON.stringify({ error: 'Failed to update access key.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 
+        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
+        const cookieVal = `current_user_key=${newKey}; HttpOnly; SameSite=Strict; Path=/${secureFlag}`;
         return new Response(JSON.stringify({ success: true }), {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: new Headers({
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Set-Cookie': cookieVal
+          })
         });
       }
 
       // New Route: POST /api/auth/verify
       if (url.pathname === '/api/auth/verify' && request.method === 'POST') {
-        const { authKey } = await request.json();
+        const authKey = await getAuthKey(request);
         if (!authKey) {
           return new Response(JSON.stringify({ error: 'Missing authKey.' }), {
             status: 400,
@@ -1269,9 +1293,28 @@ export default {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
+        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
+        const cookieVal = `current_user_key=${authKey}; HttpOnly; SameSite=Strict; Path=/${secureFlag}`;
         return new Response(JSON.stringify({ success: true, profile }), {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: new Headers({
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Set-Cookie': cookieVal
+          })
+        });
+      }
+
+      // New Route: POST /api/auth/logout
+      if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
+        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: new Headers({
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Set-Cookie': `current_user_key=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureFlag}`
+          })
         });
       }
 
@@ -1398,6 +1441,25 @@ function parseRationalArray(dataView, offset, count, littleEndian) {
     arr.push(den === 0 ? 0 : num / den);
   }
   return arr;
+}
+
+function getCookie(request, name) {
+  const cookieHeader = request.headers.get('Cookie');
+  if (!cookieHeader) return null;
+  const value = `; ${cookieHeader}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
+
+async function getAuthKey(request) {
+  const cookieHeader = request.headers.get('Cookie');
+  let authKey = null;
+  if (cookieHeader) {
+    const match = cookieHeader.match(/current_user_key=([^;]+)/);
+    if (match) authKey = match[1];
+  }
+  return authKey;
 }
 
 async function hashKey(key) {

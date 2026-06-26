@@ -223,8 +223,8 @@
     let homeRevealedReviews = new Set();
     let enableCausalIpw = false;
 
-    function loadDb() {
-      window.loadDb();
+    async function loadDb() {
+      await window.loadDb();
       db = window.db;
       window.syncLiveProfiles();
     }
@@ -391,8 +391,7 @@
       });
     }
 
-    // Load active DB
-    loadDb();
+    // Load active DB will be run during initPage() at the bottom of the script
 
 
 
@@ -560,8 +559,8 @@
       renderExplorerFeed();
     };
 
-    function saveDbState() {
-      window.saveDbState();
+    async function saveDbState() {
+      await window.saveDbState();
     }
 
     // 3. In-place Signup handler
@@ -682,7 +681,7 @@
           demographic_group: document.getElementById('home-demographic-select').value
         });
 
-        saveDbState();
+        await saveDbState();
 
         msgDiv.className = 'signup-status-message success';
         msgDiv.innerHTML = `✓ Signup Successful! Your Access Key: <strong style="color: var(--color-primary); font-family: var(--font-mono); font-size: 1.05rem; display: block; margin: 0.5rem 0; word-break: break-all;">${accessKey}</strong><br>Copy this key to sign in. Logging you in automatically...`;
@@ -692,13 +691,10 @@
         document.getElementById('home-token-input').value = '';
         document.getElementById('home-username-input').value = '';
 
-        // Auto-login & Redirect
-        sessionStorage.setItem('current_user_key', accessKey);
-
         tipDiv.innerHTML = `
           <div style="margin-top: 1rem; padding: 1.25rem; background: rgba(16,185,129,0.06); border: 1px solid var(--border-color); border-radius: var(--radius-md); text-align: center;">
             <p style="margin-bottom: 0.75rem; font-size: 0.9rem;">You are being redirected to your profile portal in 3 seconds...</p>
-            <button class="btn btn-primary" onclick="loginAndRedirect('${accessKey}')">Go to My Profile Now</button>
+            <button class="btn btn-primary" onclick="window.location.href='profile.html'">Go to My Profile Now</button>
           </div>
         `;
         tipDiv.classList.remove('hidden');
@@ -713,11 +709,6 @@
         console.error(err);
       }
     });
-
-    window.loginAndRedirect = function(key) {
-      sessionStorage.setItem('current_user_key', key);
-      window.location.href = 'profile.html';
-    };
 
     // 4. Hover effect on the mocked disputed review
     const previewOverlay = document.querySelector('.preview-overlay-mock');
@@ -796,25 +787,46 @@
       });
     }
 
-    window.addEventListener('storage', (e) => {
+    window.addEventListener('storage', async (e) => {
       if (e.key === 'review_network_db') {
-        loadDb();
+        await loadDb();
         renderExplorerFeed();
         renderFeaturedNodes();
       }
     });
 
-    // Hide Portal Feed link if guest
-    const sessionKey = sessionStorage.getItem('current_user_key');
-    const userExists = sessionKey ? db.profiles.find(p => p.access_key === sessionKey && p.is_active) : null;
-    if (!sessionKey || !userExists) {
-      const portalLink = document.querySelector('.nav-actions a[href="index.html"]');
-      if (portalLink) portalLink.classList.add('hidden');
+    // Load active DB and do initial page setup
+    async function initPage() {
+      await loadDb();
+
+      // Hide Portal Feed link if guest
+      let verified = false;
+      try {
+        const res = await fetch('https://api.inviteonlyreviews.com/api/auth/verify', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.profile && data.profile.is_active) {
+            verified = true;
+          }
+        }
+      } catch (err) {
+        console.error("Session verification failed on startup:", err);
+      }
+
+      if (!verified) {
+        const portalLink = document.querySelector('.nav-actions a[href="index.html"]');
+        if (portalLink) portalLink.classList.add('hidden');
+      }
+
+      // Initial render
+      renderExplorerFeed();
+      renderFeaturedNodes();
     }
 
-    // Initial render
-    renderExplorerFeed();
-    renderFeaturedNodes();
+    initPage();
   </script>
   <script src="assistant.js"></script>
 </body>
