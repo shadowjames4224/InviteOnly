@@ -92,8 +92,7 @@ export default {
           }
         }
 
-        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
-        const cookieVal = `current_user_key=${password}; HttpOnly; SameSite=Strict; Path=/${secureFlag}`;
+        const cookieVal = `current_user_key=${password}; HttpOnly; SameSite=None; Secure; Path=/`;
         return new Response(JSON.stringify({ success: true, profile: fullProfile }), {
           status: 201,
           headers: new Headers({
@@ -1203,8 +1202,7 @@ export default {
         
         if (!patchRes.ok) return new Response(JSON.stringify({ error: 'Failed to update access key.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 
-        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
-        const cookieVal = `current_user_key=${newKey}; HttpOnly; SameSite=Strict; Path=/${secureFlag}`;
+        const cookieVal = `current_user_key=${newKey}; HttpOnly; SameSite=None; Secure; Path=/`;
         return new Response(JSON.stringify({ success: true }), {
           status: 200,
           headers: new Headers({
@@ -1252,8 +1250,7 @@ export default {
           });
         }
 
-        const secureFlag = env.ENVIRONMENT === "production" || url.protocol === "https:" ? "; Secure" : "";
-        const cookieVal = `current_user_key=${authKey}; HttpOnly; SameSite=Strict; Path=/${secureFlag}`;
+        const cookieVal = `current_user_key=${authKey}; HttpOnly; SameSite=None; Secure; Path=/`;
         
         return new Response(JSON.stringify({ success: true, profile }), {
           status: 200,
@@ -1267,13 +1264,12 @@ export default {
 
       // New Route: POST /api/auth/logout
       if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
-        const secureFlag = env.ENVIRONMENT === 'production' || url.protocol === 'https:' ? '; Secure' : '';
         return new Response(JSON.stringify({ success: true }), {
           status: 200,
           headers: new Headers({
             ...corsHeaders,
             'Content-Type': 'application/json',
-            'Set-Cookie': `current_user_key=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureFlag}`
+            'Set-Cookie': 'current_user_key=; HttpOnly; SameSite=None; Secure; Path=/; Max-Age=0'
           })
         });
       }
