@@ -8,7 +8,7 @@ let activeTagFilter = null;
 let currentDirectoryPath = []; // Array of node objects representing breadcrumb trail
 let selectedUserId = null;
 let uploadedFiles = [];
-let managementModeActive = false;
+window.managementModeActive = false;
 
 function loadFollows() {
   return window.follows || [];
@@ -73,14 +73,7 @@ function syncCurrentUser() {
     }
   });
 
-  const btnToggleMgmt = document.getElementById('btn-toggle-management-mode');
-  if (btnToggleMgmt) {
-    if (isAdmin) {
-      btnToggleMgmt.classList.remove('hidden');
-    } else {
-      btnToggleMgmt.classList.add('hidden');
-    }
-  }
+  initializeManagementUI();
 
   if (currentUser) {
     // Offline safeguard check (deactivated in sandbox)
@@ -1197,6 +1190,13 @@ window.deleteReviewFromFeed = async function(reviewId) {
 // 6. Hierarchical Directory Browser
 // ----------------------------------------------------
 function renderDirectoryExplorer() {
+  console.log("Rendering Directory. Management Mode Active:", window.managementModeActive);
+  if (currentUser) {
+    console.log("Checking User Role:", currentUser.role);
+  } else {
+    console.log("Checking User Role:", null);
+  }
+
   const listDeck = document.getElementById('directory-items-deck');
   const breadcrumbs = document.getElementById('directory-breadcrumbs-bar');
   const detailsCard = document.getElementById('selected-node-info-card');
@@ -1267,7 +1267,7 @@ function renderDirectoryExplorer() {
 
     let managementButtonsHtml = '';
     const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
-    if (managementModeActive && isModerator && child.parent_id !== null) {
+    if (window.managementModeActive && isModerator && child.parent_id !== null) {
       managementButtonsHtml = `
         <div class="mgmt-actions" style="margin-left: auto; display: flex; gap: 0.25rem;">
           <button class="btn btn-warning btn-sm btn-relocate" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; width: auto; height: auto;">Relocate</button>
@@ -2369,6 +2369,57 @@ window.mergeNodeInDirectory = async function(nodeId, targetId = null) {
   }
 };
 
+function initializeManagementUI() {
+  console.log("Rendering Directory. Management Mode Active:", window.managementModeActive);
+  if (currentUser) {
+    console.log("Checking User Role:", currentUser.role);
+  } else {
+    console.log("Checking User Role:", null);
+  }
+
+  let btnToggleMgmt = document.getElementById('btn-toggle-management-mode');
+  if (!btnToggleMgmt) {
+    const cardHeader = document.querySelector('.directory-nav-card .card-header') || document.querySelector('#browse-view .card-header');
+    if (cardHeader) {
+      btnToggleMgmt = document.createElement('button');
+      btnToggleMgmt.id = 'btn-toggle-management-mode';
+      btnToggleMgmt.className = 'btn btn-warning hidden';
+      btnToggleMgmt.style.padding = '0.35rem 0.65rem';
+      btnToggleMgmt.style.fontSize = '0.75rem';
+      btnToggleMgmt.style.width = 'auto';
+      btnToggleMgmt.style.height = 'auto';
+      btnToggleMgmt.innerText = 'Unlock Management Mode';
+      cardHeader.appendChild(btnToggleMgmt);
+    }
+  }
+
+  if (btnToggleMgmt) {
+    const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
+    if (isModerator) {
+      btnToggleMgmt.classList.remove('hidden');
+      btnToggleMgmt.style.display = 'inline-block';
+    } else {
+      btnToggleMgmt.classList.add('hidden');
+      btnToggleMgmt.style.display = 'none';
+    }
+
+    if (!btnToggleMgmt.dataset.listenerAttached) {
+      btnToggleMgmt.addEventListener('click', () => {
+        window.managementModeActive = !window.managementModeActive;
+        if (window.managementModeActive) {
+          btnToggleMgmt.innerText = 'Lock Management Mode';
+          btnToggleMgmt.style.background = 'var(--color-primary)';
+        } else {
+          btnToggleMgmt.innerText = 'Unlock Management Mode';
+          btnToggleMgmt.style.background = '';
+        }
+        renderDirectoryExplorer();
+      });
+      btnToggleMgmt.dataset.listenerAttached = 'true';
+    }
+  }
+}
+
 // ----------------------------------------------------
 // 10. Initialization & Listeners Setup
 // ----------------------------------------------------
@@ -2401,20 +2452,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   syncCurrentUser();
 
   // Set up Unlock Management Mode button
-  const btnToggleMgmt = document.getElementById('btn-toggle-management-mode');
-  if (btnToggleMgmt) {
-    btnToggleMgmt.addEventListener('click', () => {
-      managementModeActive = !managementModeActive;
-      if (managementModeActive) {
-        btnToggleMgmt.innerText = 'Lock Management Mode';
-        btnToggleMgmt.style.background = 'var(--color-primary)';
-      } else {
-        btnToggleMgmt.innerText = 'Unlock Management Mode';
-        btnToggleMgmt.style.background = '';
-      }
-      renderDirectoryExplorer();
-    });
-  }
+  initializeManagementUI();
 
   initTabNavigation();
   initDropdownTypeaheadFilter();
