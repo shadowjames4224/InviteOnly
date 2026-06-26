@@ -1267,7 +1267,7 @@ function renderDirectoryExplorer() {
 
     let managementButtonsHtml = '';
     const isModerator = currentUser && (currentUser.role === 'key_root_moderator' || currentUser.role === 'moderator');
-    if (window.managementModeActive && isModerator && child.parent_id !== null) {
+    if (window.managementModeActive && isModerator) {
       managementButtonsHtml = `
         <div class="mgmt-actions" style="margin-left: auto; display: flex; gap: 0.25rem;">
           <button class="btn btn-warning btn-sm btn-relocate" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; width: auto; height: auto;">Relocate</button>
