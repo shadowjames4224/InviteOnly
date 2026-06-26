@@ -927,14 +927,34 @@ function renderProfileTelemetryInputs() {
 document.querySelectorAll('input[name="review-node-mode"]').forEach(radio => {
   radio.addEventListener('change', (e) => {
     const mode = e.target.value;
-    const groupExisting = document.getElementById('group-existing-node');
+    const labelEl = document.getElementById('label-review-target-search');
+    const searchEl = document.getElementById('review-target-search');
+    const autocompleteMenu = document.getElementById('review-target-autocomplete-menu');
+    const breadcrumbPreview = document.getElementById('review-target-breadcrumb-preview');
     const groupNew = document.getElementById('group-new-node');
+    const targetNodeSelect = document.getElementById('review-target-node');
+
     if (mode === 'existing') {
-      groupExisting.classList.remove('hidden');
-      groupNew.classList.add('hidden');
+      if (labelEl) labelEl.innerText = "Select Location or Business";
+      if (searchEl) {
+        searchEl.placeholder = "Search by name... (e.g. Austin, Shinjuku, Classic Coffee)";
+        const selectedId = parseInt(targetNodeSelect?.value);
+        const selectedNode = db.nodes.find(n => n.id === selectedId);
+        searchEl.value = selectedNode ? selectedNode.name : '';
+        if (selectedNode && breadcrumbPreview) {
+          breadcrumbPreview.classList.remove('hidden');
+        }
+      }
+      if (groupNew) groupNew.classList.add('hidden');
     } else {
-      groupExisting.classList.add('hidden');
-      groupNew.classList.remove('hidden');
+      if (labelEl) labelEl.innerText = "New Location Name (Slashes separate sub-folders)";
+      if (searchEl) {
+        searchEl.placeholder = "e.g. Coffee Shops / Joe's Cafe";
+        searchEl.value = '';
+      }
+      if (autocompleteMenu) autocompleteMenu.classList.add('hidden');
+      if (breadcrumbPreview) breadcrumbPreview.classList.add('hidden');
+      if (groupNew) groupNew.classList.remove('hidden');
     }
     renderProfileTelemetryInputs();
   });
@@ -1333,7 +1353,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
   } else {
     // Create new node pathway dynamically
     const parentIdVal = document.getElementById('review-new-parent-node').value;
-    const pathText = document.getElementById('review-new-path').value.trim();
+    const pathText = document.getElementById('review-target-search').value.trim();
     const leafType = document.getElementById('review-new-leaf-type').value;
     const address = document.getElementById('review-new-address').value.trim();
     const coords = document.getElementById('review-new-coords').value.trim();
@@ -1585,7 +1605,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
           let targetName = "";
           let targetAliases = [];
           if (mode === 'new') {
-            const pathText = document.getElementById('review-new-path').value.trim();
+            const pathText = document.getElementById('review-target-search').value.trim();
             const pathSegments = pathText.split('/').map(s => s.trim()).filter(Boolean);
             targetName = pathSegments[pathSegments.length - 1] || "";
             targetAliases = [];
@@ -1694,8 +1714,10 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
     const tagsInput = document.getElementById('new-review-tags');
     if (tagsInput) tagsInput.value = '';
     document.getElementById('new-review-text').value = '';
-    const newPathEl = document.getElementById('review-new-path');
-    if (newPathEl) newPathEl.value = '';
+    const searchInputEl = document.getElementById('review-target-search');
+    if (searchInputEl) searchInputEl.value = '';
+    const targetNodeSelect = document.getElementById('review-target-node');
+    if (targetNodeSelect) targetNodeSelect.value = '';
     const newAddressEl = document.getElementById('review-new-address');
     if (newAddressEl) newAddressEl.value = '';
     const newCoordsEl = document.getElementById('review-new-coords');
@@ -1961,14 +1983,9 @@ function initSearchFirstLocationSelector() {
     }
 
     limitedNodes.forEach(node => {
-      const parentNode = node.parent_id ? db.nodes.find(n => n.id === node.parent_id) : null;
-      const typeLabel = node.node_type ? (node.node_type.charAt(0).toUpperCase() + node.node_type.slice(1).replace('_', ' ')) : '';
-      const parentName = parentNode ? parentNode.name : '';
-      const displayText = parentName ? `${node.name} (${typeLabel} under ${parentName})` : `${node.name} (${typeLabel})`;
-
       const item = document.createElement('div');
       item.className = 'searchable-select-item';
-      item.innerText = displayText;
+      item.innerText = node.name; // Only show the location name
       item.style.padding = '0.75rem';
       item.style.cursor = 'pointer';
       item.style.fontSize = '0.9rem';
@@ -2030,11 +2047,27 @@ function initSearchFirstLocationSelector() {
   syncInitialSelection();
 
   searchInput.addEventListener('focus', () => {
+    const mode = document.querySelector('input[name="review-node-mode"]:checked')?.value || 'existing';
+    if (mode === 'new') return;
     autocompleteMenu.classList.remove('hidden');
     updateSuggestions();
   });
 
   searchInput.addEventListener('input', () => {
+    const mode = document.querySelector('input[name="review-node-mode"]:checked')?.value || 'existing';
+    if (mode === 'new') {
+      autocompleteMenu.classList.add('hidden');
+      return;
+    }
+    
+    // Clear select value if doesn't match selected node name
+    const selectedId = parseInt(targetNodeSelect.value);
+    const selectedNode = db.nodes.find(n => n.id === selectedId);
+    if (!selectedNode || searchInput.value !== selectedNode.name) {
+      targetNodeSelect.value = '';
+      if (breadcrumbPreview) breadcrumbPreview.classList.add('hidden');
+    }
+
     autocompleteMenu.classList.remove('hidden');
     updateSuggestions();
   });

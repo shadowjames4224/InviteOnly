@@ -427,9 +427,24 @@
           </div>
           <p class="card-desc">Post a review to the network. Use proof-of-experience verification to verify your review.</p>
           
+          <!-- Target Location Mode -->
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label style="margin-bottom: 0.5rem; display: block; font-family: var(--font-heading); font-size: 0.95rem; font-weight: 500; color: #e4e4e7;">Target Location Mode</label>
+            <div style="display: flex; gap: 1.5rem;">
+              <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.9rem; color: #e4e4e7;">
+                <input type="radio" name="review-node-mode" value="existing" checked style="accent-color: var(--color-primary);">
+                <span>Review Existing Location</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.9rem; color: #e4e4e7;">
+                <input type="radio" name="review-node-mode" value="new" style="accent-color: var(--color-primary);">
+                <span>Create New Location Path</span>
+              </label>
+            </div>
+          </div>
+
           <!-- Search-First Location selection -->
           <div class="form-group" id="group-existing-node" style="margin-bottom: 1rem;">
-            <label for="review-target-search" style="font-weight: 500; font-size: 0.95rem; color: #e4e4e7;">Select Location or Business</label>
+            <label for="review-target-search" id="label-review-target-search" style="font-weight: 500; font-size: 0.95rem; color: #e4e4e7;">Select Location or Business</label>
             <div class="search-location-wrapper" style="position: relative; width: 100%;">
               <input type="text" id="review-target-search" class="input-field" placeholder="Search by name... (e.g. Austin, Shinjuku, Classic Coffee)" autocomplete="off" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.95rem;">
               <div id="review-target-autocomplete-menu" class="searchable-select-menu hidden" style="position: absolute; top: 105%; left: 0; width: 100%; max-height: 250px; overflow-y: auto; background: #12141c; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5);"></div>
@@ -440,6 +455,49 @@
             </div>
             <!-- Hidden original select to preserve compatibility -->
             <select id="review-target-node" class="hidden"></select>
+          </div>
+
+          <!-- New Node Path creation fields (outside details, shown only in 'new' mode) -->
+          <div class="form-group hidden" id="group-new-node" style="border-left: 2px solid var(--color-primary); padding-left: 1rem; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;">
+            <div class="form-group">
+              <label for="review-new-parent-node" style="font-size: 0.85rem; color: #a1a1aa;">Base Parent Category / City</label>
+              <select id="review-new-parent-node" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
+                <!-- Populated dynamically with all nodes -->
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="review-new-address" style="font-size: 0.85rem; color: #a1a1aa;">Street Address</label>
+              <input type="text" id="review-new-address" placeholder="e.g. 200 Congress Ave, Austin, TX" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.9rem;">
+            </div>
+
+            <div class="form-group">
+              <label for="review-new-coords" style="font-size: 0.85rem; color: #a1a1aa;">GPS Coordinates</label>
+              <input type="text" id="review-new-coords" placeholder="e.g. 30.2672° N, 97.7431° W" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.9rem;">
+            </div>
+
+            <div class="form-group">
+              <label for="review-new-global-entity" style="font-size: 0.85rem; color: #a1a1aa;">Product Blueprint</label>
+              <select id="review-new-global-entity" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
+                <option value="">None (Generic Node)</option>
+                <option value="ge_macchiato">Iced Caramel Macchiato (Commercial Service)</option>
+                <option value="ge_gpu_x">Silicon Core GPU-X (Physical Good)</option>
+                <option value="ge_fishing_pool">Silver Creek Fly Fishing Pool (Outdoor Asset)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="review-new-leaf-type" style="font-size: 0.85rem; color: #a1a1aa;">Location Type</label>
+              <select id="review-new-leaf-type" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
+                <option value="merchant">Merchant (Store / Place / Business)</option>
+                <option value="item">Item (Product / Menu Item / Specific Service)</option>
+                <option value="fishing_spot">Fishing Spot (Lake / River / Dock)</option>
+                <option value="point_of_interest">Point of Interest (Landmark / Park)</option>
+                <option value="state">State / Province</option>
+                <option value="city">City / Town</option>
+                <option value="category">Category (General Taxonomy Node)</option>
+              </select>
+            </div>
           </div>
 
           <!-- Dynamic Telemetry Fields depending on node category -->
@@ -459,104 +517,40 @@
             </summary>
             <div style="padding: 0.75rem; display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--border-color);">
               
-              <!-- Location Selection Mode Toggle -->
-              <div class="form-group">
-                <label style="margin-bottom: 0.5rem; display: block; font-family: var(--font-heading); font-size: 0.85rem; color: #a1a1aa;">Target Location Mode</label>
-                <div style="display: flex; gap: 1.5rem;">
-                  <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.8rem; color: #e4e4e7;">
-                    <input type="radio" name="review-node-mode" value="existing" checked style="accent-color: var(--color-primary);">
-                    <span>Review Existing Location</span>
-                  </label>
-                  <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.8rem; color: #e4e4e7;">
-                    <input type="radio" name="review-node-mode" value="new" style="accent-color: var(--color-primary);">
-                    <span>Create New Location Path</span>
-                  </label>
-                </div>
-              </div>
-
-              <!-- New Node Path creation -->
-              <div class="form-group hidden" id="group-new-node" style="border-left: 2px solid var(--color-primary); padding-left: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
-                <div class="form-group">
-                  <label for="review-new-parent-node" style="font-size: 0.85rem; color: #a1a1aa;">Base Parent Category / City</label>
-                  <select id="review-new-parent-node" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
-                    <!-- Populated dynamically with all nodes -->
-                  </select>
-                </div>
-                
-                <div class="form-group">
-                  <label for="review-new-path" style="font-size: 0.85rem; color: #a1a1aa;">New Sub-path name (Slashes separate folders/items)</label>
-                  <input type="text" id="review-new-path" placeholder="e.g. Coffee Shops / Joe's Cafe" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.9rem;">
-                  <span style="font-size: 0.7rem; color: var(--color-text-dim); margin-top: 0.25rem; display: block;">Intermediate categories are created automatically.</span>
-                </div>
-
-                <div class="form-group">
-                  <label for="review-new-address" style="font-size: 0.85rem; color: #a1a1aa;">Street Address</label>
-                  <input type="text" id="review-new-address" placeholder="e.g. 200 Congress Ave, Austin, TX" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.9rem;">
-                </div>
-
-                <div class="form-group">
-                  <label for="review-new-coords" style="font-size: 0.85rem; color: #a1a1aa;">GPS Coordinates</label>
-                  <input type="text" id="review-new-coords" placeholder="e.g. 30.2672° N, 97.7431° W" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; font-family: var(--font-body); font-size: 0.9rem;">
-                </div>
-
-                <div class="form-group">
-                  <label for="review-new-global-entity" style="font-size: 0.85rem; color: #a1a1aa;">Product Blueprint</label>
-                  <select id="review-new-global-entity" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
-                    <option value="">None (Generic Node)</option>
-                    <option value="ge_macchiato">Iced Caramel Macchiato (Commercial Service)</option>
-                    <option value="ge_gpu_x">Silicon Core GPU-X (Physical Good)</option>
-                    <option value="ge_fishing_pool">Silver Creek Fly Fishing Pool (Outdoor Asset)</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="review-new-leaf-type" style="font-size: 0.85rem; color: #a1a1aa;">Location Type</label>
-                  <select id="review-new-leaf-type" class="select-field" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white;">
-                    <option value="merchant">Merchant (Store / Place / Business)</option>
-                    <option value="item">Item (Product / Menu Item / Specific Service)</option>
-                    <option value="fishing_spot">Fishing Spot (Lake / River / Dock)</option>
-                    <option value="point_of_interest">Point of Interest (Landmark / Park)</option>
-                    <option value="state">State / Province</option>
-                    <option value="city">City / Town</option>
-                    <option value="category">Category (General Taxonomy Node)</option>
-                  </select>
-                </div>
-              </div>
-
               <!-- Custom Tags -->
               <div class="form-group">
                 <label for="new-review-tags" style="font-size: 0.85rem; color: #a1a1aa;">Add Custom Tags (comma-separated)</label>
                 <input type="text" id="new-review-tags" placeholder="e.g. coffee, local business" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 0.75rem; background: rgba(0,0,0,0.2); color: white; font-family: var(--font-body); font-size: 0.9rem; box-sizing: border-box;">
               </div>
 
+              <!-- Telemetry & Proof-of-Experience (PoE) Pipeline -->
+              <div class="form-group" style="margin-top: 0.25rem;">
+                <label style="font-weight: 500; font-size: 0.85rem; color: #a1a1aa; display: block; margin-bottom: 0.5rem;">Proof-of-Experience (PoE) Verification</label>
+                <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="checkbox" id="chk-profile-gps" class="checkbox-field">
+                    <label for="chk-profile-gps" style="font-size: 0.82rem; font-weight: 500; cursor: pointer;">Verify Proximity (EXIF GPS)</label>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="checkbox" id="chk-profile-ocr" class="checkbox-field">
+                    <label for="chk-profile-ocr" style="font-size: 0.82rem; font-weight: 500; cursor: pointer;">Verify Transaction (WASM Receipt OCR)</label>
+                  </div>
+                </div>
+
+                <!-- Media Upload and Preview UI -->
+                <div class="form-group hidden" id="poe-profile-media-group" style="margin-top: 0.75rem;">
+                  <label for="poe-profile-image-upload" style="font-size: 0.82rem; color: #a1a1aa;">Upload Photos (for GPS EXIF) / Receipts (for OCR):</label>
+                  <input type="file" accept="image/*" id="poe-profile-image-upload" class="input-field" multiple style="background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); cursor: pointer; padding: 1rem; text-align: center; margin-top: 0.25rem; width: 100%; box-sizing: border-box;">
+                  <p class="panel-desc" style="margin-top: 0.35rem; font-size: 0.75rem; color: var(--color-text-dim);">Note: For GPS verification, you must upload an original, unedited photo (.JPG or .HEIC). Photos downloaded from the web or messaging apps will fail.</p>
+                  <div id="poe-profile-preview-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;"></div>
+                </div>
+              </div>
+
+              <!-- Telemetry Console Logs -->
+              <div class="terminal-log hidden" id="profile-poe-logs" style="margin-top: 0.5rem; max-height: 150px;"></div>
+
             </div>
           </details>
-
-          <!-- Telemetry & Proof-of-Experience (PoE) Pipeline -->
-          <div class="form-group" style="margin-top: 1.25rem;">
-            <label>Proof-of-Experience (PoE) Verification</label>
-            <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem;">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="checkbox" id="chk-profile-gps" class="checkbox-field">
-                <label for="chk-profile-gps" style="font-weight: 500; cursor: pointer;">Verify Proximity (EXIF GPS)</label>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="checkbox" id="chk-profile-ocr" class="checkbox-field">
-                <label for="chk-profile-ocr" style="font-weight: 500; cursor: pointer;">Verify Transaction (WASM Receipt OCR)</label>
-              </div>
-            </div>
-
-            <!-- Media Upload and Preview UI -->
-            <div class="form-group hidden" id="poe-profile-media-group" style="margin-top: 0.75rem;">
-              <label for="poe-profile-image-upload" style="font-size: 0.85rem; color: #a1a1aa;">Upload Photos (for GPS EXIF) / Receipts (for OCR):</label>
-              <input type="file" accept="image/*" id="poe-profile-image-upload" class="input-field" multiple style="background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); cursor: pointer; padding: 1rem; text-align: center; margin-top: 0.25rem;">
-              <p class="panel-desc" style="margin-top: 0.35rem; font-size: 0.75rem; color: var(--color-text-dim);">Note: For GPS verification, you must upload an original, unedited photo (.JPG or .HEIC). Photos downloaded from the web or messaging apps will fail.</p>
-              <div id="poe-profile-preview-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;"></div>
-            </div>
-          </div>
-
-          <!-- Telemetry Console Logs -->
-          <div class="terminal-log hidden" id="profile-poe-logs" style="margin-top: 1rem; max-height: 150px;"></div>
 
           <button class="btn btn-primary btn-full" style="margin-top: 1.5rem;" id="btn-submit-profile-review">
             Post Review
