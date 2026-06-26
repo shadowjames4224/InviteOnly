@@ -2077,7 +2077,7 @@ function initReviewSubmission() {
         });
       }
 
-      const commitReview = () => {
+      const commitReview = async () => {
         log("PoE Pipeline complete. Appending review...", "command");
         
         let isVerified = false;
@@ -2091,11 +2091,48 @@ function initReviewSubmission() {
           method = method ? `${method},wasm_ocr` : 'wasm_ocr';
         }
 
+        let finalNodeId = targetNodeId;
+
+        if (isNewMode) {
+          log("Edge-Worker: Creating new location path in database...", "info");
+          try {
+            const parentIdSelect = document.getElementById('select-portal-parent-category');
+            const parentIdVal = parentIdSelect.value ? parseInt(parentIdSelect.value) : null;
+            const nodeCreateRes = await fetch('https://api.inviteonlyreviews.com/api/nodes', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                newNodes: newNodesList,
+                parentNodeId: parentIdVal
+              })
+            });
+
+            if (!nodeCreateRes.ok) {
+              const errData = await nodeCreateRes.json();
+              const errMsg = errData.error || "Failed to create location path.";
+              log(`Edge-Worker: Location creation FAILED - ${errMsg}`, "danger");
+              alert(`Error creating location path: ${errMsg}`);
+              return;
+            }
+
+            const createResult = await nodeCreateRes.json();
+            finalNodeId = parseInt(createResult.nodeId);
+            log(`Edge-Worker: Location path created successfully. Database Node ID: ${finalNodeId}`, "success");
+          } catch (err) {
+            log(`Edge-Worker: Network error creating location: ${err.message}`, "danger");
+            alert(`Network error: ${err.message}`);
+            return;
+          }
+        }
+
         const newReviewId = crypto.randomUUID();
         
         const newReview = {
           id: newReviewId,
-          node_id: targetNodeId,
+          node_id: finalNodeId,
           author_id: currentUser.id,
           raw_content: content,
           is_verified_experience: isVerified,
@@ -2135,8 +2172,6 @@ function initReviewSubmission() {
           credentials: 'include',
           body: JSON.stringify({
             review: newReview,
-            newNodes: newNodesList,
-            parentNodeId: isNewMode ? parentIdSelect.value : null,
             tags: tagsList
           })
         }).then(res => {

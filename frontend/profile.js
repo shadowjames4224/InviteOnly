@@ -1648,11 +1648,46 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
       method = method ? `${method},wasm_ocr` : 'wasm_ocr';
     }
 
+    let finalNodeId = nodeId;
+
+    if (mode === 'new') {
+      log("Edge-Worker: Creating new location path in database...", "info");
+      try {
+        const nodeCreateRes = await fetch('https://api.inviteonlyreviews.com/api/nodes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            newNodes: newNodesList,
+            parentNodeId: parentIdVal
+          })
+        });
+
+        if (!nodeCreateRes.ok) {
+          const errData = await nodeCreateRes.json();
+          const errMsg = errData.error || "Failed to create location path.";
+          log(`Edge-Worker: Location creation FAILED - ${errMsg}`, "danger");
+          alert(`Error creating location path: ${errMsg}`);
+          return;
+        }
+
+        const createResult = await nodeCreateRes.json();
+        finalNodeId = parseInt(createResult.nodeId);
+        log(`Edge-Worker: Location path created successfully. Database Node ID: ${finalNodeId}`, "success");
+      } catch (err) {
+        log(`Edge-Worker: Network error creating location: ${err.message}`, "danger");
+        alert(`Network error: ${err.message}`);
+        return;
+      }
+    }
+
     const newId = crypto.randomUUID();
     
     const newReview = {
       id: newId,
-      node_id: nodeId,
+      node_id: finalNodeId,
       execution_instance_id: instId,
       author_id: currentUser.id,
       raw_content: content,
@@ -1688,7 +1723,7 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
 
     await saveDbState();
 
-    // Call Supabase API
+    // Call Supabase API to sync review
     fetch('https://api.inviteonlyreviews.com/api/reviews', {
       method: 'POST',
       headers: {
@@ -1697,7 +1732,6 @@ document.getElementById('btn-submit-profile-review')?.addEventListener('click', 
       credentials: 'include',
       body: JSON.stringify({
         review: newReview,
-        newNodes: newNodesList,
         tags: tagsList
       })
     }).then(res => {

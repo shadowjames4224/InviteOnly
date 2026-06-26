@@ -697,18 +697,12 @@ export default {
         }
 
         // Insert review and related nodes/tags atomically via submit_review_transaction RPC
-        const rpcRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/submit_review_transaction`, {
-          method: "POST",
-          headers: {
-            "apikey": env.SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
+        try {
+          await syncToLedger(env, {
             p_review_id: review.id,
             p_author_id: profile.id,
             p_node_id: review.node_id || null,
-            p_parent_node_id: parentNodeId ? parseInt(parentNodeId) : null,
+            p_parent_node_id: parentNodeId ? parentNodeId.toString() : null,
             p_new_nodes: newNodes && newNodes.length > 0 ? newNodes : null,
             p_raw_content: sanitizeInput(review.raw_content),
             p_is_verified: review.is_verified_experience,
@@ -718,18 +712,67 @@ export default {
             p_param_3: review.param_val_3 || null,
             p_gps_dop: review.gps_dop || null,
             p_tags: tags && tags.length > 0 ? tags : null
-          })
-        });
-
-        const rpcData = await rpcRes.json();
-        if (!rpcRes.ok || !rpcData.success) {
-          return new Response(JSON.stringify({ error: rpcData.message || "Failed to submit review transaction." }), {
+          });
+        } catch (err: any) {
+          return new Response(JSON.stringify({ error: err.message || "Failed to submit review transaction." }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
 
         return new Response(JSON.stringify({ success: true }), {
+          status: 201,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // Route 7b: POST /api/nodes
+      if (url.pathname === '/api/nodes' && request.method === 'POST') {
+        const authKey = await getAuthKey(request);
+        const { newNodes, parentNodeId } = await request.json();
+        if (!authKey || !newNodes) {
+          return new Response(JSON.stringify({ error: 'Missing node creation parameters.' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const profile = await authenticateUser(authKey, env);
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Invalid access key.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        if (!profile.is_active) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Account is suspended.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const rpcRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_or_create_nested_nodes`, {
+          method: "POST",
+          headers: {
+            "apikey": env.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            parent_node_id: parentNodeId ? parentNodeId.toString() : null,
+            node_payloads: newNodes
+          })
+        });
+
+        const nodeIdResult = await rpcRes.json();
+        if (!rpcRes.ok || nodeIdResult === null) {
+          return new Response(JSON.stringify({ error: "Failed to create nodes in database." }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true, nodeId: nodeIdResult }), {
           status: 201,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
@@ -1610,6 +1653,65 @@ async function authenticateUser(authKey, env) {
     return profile;
   } catch (e) {
     return null;
+  }
+}
+
+async function syncToLedger(env: any, payload: any) {
+  // Debug Logging: log exact JSON payload being sent to the ledger
+  console.log("Ledger Sync Payload:", JSON.stringify(payload));
+
+  // exact SQL query equivalence for logging
+  const tagsSql = payload.p_tags 
+    ? `ARRAY[${payload.p_tags.map((t: string) => `'${t.replace(/'/g, "''")}'`).join(', ')}]::text[]` 
+    : 'NULL::text[]';
+  const newNodesSql = payload.p_new_nodes 
+    ? `'${JSON.stringify(payload.p_new_nodes).replace(/'/g, "''")}'::jsonb` 
+    : 'NULL::jsonb';
+  
+  const sqlEquiv = `SELECT public.submit_review_transaction(
+    ${payload.p_review_id ? `'${payload.p_review_id}'::uuid` : 'NULL::uuid'},
+    '${payload.p_author_id}'::uuid,
+    ${payload.p_node_id ? `${payload.p_node_id}::bigint` : 'NULL::bigint'},
+    ${payload.p_parent_node_id ? `${payload.p_parent_node_id}::bigint` : 'NULL::bigint'},
+    ${newNodesSql},
+    '${payload.p_raw_content.replace(/'/g, "''")}'::text,
+    ${payload.p_is_verified}::boolean,
+    ${payload.p_verification_method ? `'${payload.p_verification_method}'::character varying` : 'NULL::character varying'},
+    ${payload.p_param_1 ? `${payload.p_param_1}::numeric` : 'NULL::numeric'},
+    ${payload.p_param_2 ? `${payload.p_param_2}::numeric` : 'NULL::numeric'},
+    ${payload.p_param_3 ? `${payload.p_param_3}::numeric` : 'NULL::numeric'},
+    ${payload.p_gps_dop ? `${payload.p_gps_dop}::numeric` : 'NULL::numeric'},
+    ${tagsSql}
+  );`;
+
+  let rpcData: any;
+  try {
+    const rpcRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/submit_review_transaction`, {
+      method: "POST",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const responseText = await rpcRes.text();
+    try {
+      rpcData = JSON.parse(responseText);
+    } catch (parseErr) {
+      console.error(`Ledger sync JSON parse failure. Raw Response: ${responseText}\nEquiv SQL:\n${sqlEquiv}`);
+      throw new Error(`Failed to parse Supabase RPC response: ${responseText}`);
+    }
+
+    if (!rpcRes.ok || !rpcData.success) {
+      console.error(`Ledger sync failure. Equiv SQL:\n${sqlEquiv}\nError:`, rpcData?.message || "Unknown RPC error");
+      throw new Error(rpcData?.message || "Failed to submit review transaction.");
+    }
+    return rpcData;
+  } catch (err: any) {
+    console.error(`Ledger sync exception. Equiv SQL:\n${sqlEquiv}\nError details:`, err);
+    throw err;
   }
 }
 
