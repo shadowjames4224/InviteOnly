@@ -3,12 +3,13 @@ export default {
     const url = new URL(request.url);
 
     // CORS Headers to allow requests from your frontend portal
-    const origin = request.headers.get('Origin') || '*';
+    const origin = request.headers.get("Origin");
+    const allowedOrigins = ["https://inviteonlyreviews.com", "https://www.inviteonlyreviews.com", "http://localhost:8000"];
     const corsHeaders = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Allow-Credentials': 'true',
+      "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : "https://inviteonlyreviews.com",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Credentials": "true"
     };
 
     if (request.method === 'OPTIONS') {
